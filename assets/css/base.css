@@ -27,7 +27,8 @@
 :lang(zh-Hant-TW) { font-family: var(--font-body-zh); }
 :lang(ja) { font-family: var(--font-body-ja); }
 
-/* :lang 會套用到每一個子元素，所以標題與程式碼需要更高的優先度才蓋得過去 */
+/* 標題字型用於網站名稱（h1）、章標題與小節標題。
+   :lang 會套用到每一個子元素，所以標題與程式碼需要更高的優先度才蓋得過去 */
 .font-head:lang(zh-Hant-TW),
 .font-head :lang(zh-Hant-TW) { font-family: var(--font-head-zh); font-weight: 700; }
 .font-head:lang(ja),
@@ -135,7 +136,6 @@ html[data-lang-mode="both"] .skip-link .t-ja { color: inherit; }
   color: var(--color-tetsukon);
   font-size: 2rem;
   line-height: 1.35;
-  font-weight: 700;
 }
 .page-title .t-ja { font-size: 0.7em; }
 .page-subtitle { margin-top: 0.75rem; color: var(--color-kurotsurubami); }
