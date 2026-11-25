@@ -2,8 +2,8 @@
 
 /* ---------- 色票（規格書 5.1） ---------- */
 :root {
-  --color-zouge: #F8F4E6;         /* 象牙色　頁面背景 */
-  --color-kinari: #FBFAF5;        /* 生成り色　內容區背景 */
+  --color-zouge: #F8F4E6;         /* 象牙色　流程圖的底色 */
+  --color-kinari: #FBFAF5;        /* 生成り色　整個右側內容區的背景 */
   --color-neri: #EDE4CD;          /* 練色　註記框與左側欄背景 */
   --color-binroji: #433D3C;       /* 檳榔子染　正文 */
   --color-kurotsurubami: #544A47; /* 黒橡　次要文字、日語行 */
@@ -54,7 +54,7 @@
 
 html {
   scrollbar-gutter: stable; /* 捲軸出現時版面不跳動 */
-  background: var(--color-zouge);
+  background: var(--color-kinari);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -107,23 +107,19 @@ html[data-lang-mode="both"] .t-ja { color: var(--color-kurotsurubami); margin-to
 .skip-link:focus { transform: translate(-50%, 0); }
 html[data-lang-mode="both"] .skip-link .t-ja { color: inherit; }
 
-/* ---------- 內容區：一張筆記本的紙 ---------- */
-.page {
-  margin-left: var(--sidebar-space);
-  padding: 2.5rem 1.5rem 4rem;
-}
+/* ---------- 內容區：整個右側就是筆記本的紙，沒有外框 ---------- */
+.page { margin-left: var(--sidebar-space); }
 
 .sheet {
   position: relative;
   max-width: calc(40em + var(--sheet-gutter) + var(--sheet-pad)); /* 文字欄為 40em */
+  min-height: 100vh; /* 內容很短時，朱色邊線也要到畫面底端 */
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 3.5rem var(--sheet-pad) 4rem var(--sheet-gutter);
-  background: var(--color-kinari);
-  border: 1px solid var(--color-rikyu);
-  box-shadow: 0 2px 6px rgb(67 61 60 / 0.12);
+  padding: 4rem var(--sheet-pad) 5rem var(--sheet-gutter);
 }
 
-/* 朱色邊線 */
+/* 朱色邊線，從頁面頂端貫穿到底端 */
 .sheet::before {
   content: "";
   position: absolute;
@@ -362,14 +358,13 @@ html[data-lang-mode="both"] .sidebar-foot .t-ja { color: inherit; }
 @media (max-width: 767.98px) {
   :root {
     --sidebar-space: 0px;
-    --sheet-gutter: 1.5rem;
-    --sheet-line: 0.625rem;
+    --sheet-gutter: 2rem;
+    --sheet-line: 1.125rem;
     --sheet-line-width: 1px;
-    --sheet-pad: 1rem;
+    --sheet-pad: 1.25rem;
     --anchor-gap: 4.5rem; /* 加上「☰」按鈕的高度 */
   }
-  .page { padding: 0 0.5rem 2rem; }
-  .sheet { padding-top: 4.75rem; padding-bottom: 3rem; border-top: 0; }
+  .sheet { padding-top: 4.75rem; padding-bottom: 3rem; }
 
   /* 頁邊太窄，章編號改放在標題文字前 */
   .chapter { margin-top: 4rem; }
@@ -412,6 +407,6 @@ html[data-lang-mode="both"] .sidebar-foot .t-ja { color: inherit; }
 /* ---------- 列印 ---------- */
 @media print {
   .sidebar, .sidebar-toggle, .sidebar-backdrop, .skip-link { display: none !important; }
-  .page { margin-left: 0; padding: 0; }
-  .sheet { max-width: none; border: 0; box-shadow: none; }
+  .page { margin-left: 0; }
+  .sheet { max-width: none; min-height: 0; }
 }
