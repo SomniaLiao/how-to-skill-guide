@@ -1,0 +1,19 @@
+# 教師的規格與內容原稿，不屬於公開 repo
+/0_Data/
+/handoff/
+CLAUDE.md
+.claude/
+
+# 作業系統產生的隱藏檔
+.DS_Store
+Thumbs.db
+
+# 憑證與環境設定，絕對不可上傳
+.env
+.env.*
+*.pem
+*.key
+
+# 開發用的暫存檔
+node_modules/
+tmp/

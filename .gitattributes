@@ -1,0 +1,6 @@
+# 文字檔統一使用 LF 換行，避免 Windows 的 CRLF 讓 .sh 無法執行
+* text=auto eol=lf
+
+# 二進位檔不做任何轉換，避免檔案損壞
+*.webp binary
+*.zip binary
