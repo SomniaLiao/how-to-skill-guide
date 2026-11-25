@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant-TW" data-lang-mode="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>內容檢查</title>
+<link rel="icon" href="assets/img/icons/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<script type="module" src="assets/js/check.js"></script>
+</head>
+<body data-page="check">
+<main class="check-page">
+  <h1 class="page-title font-head">內容檢查</h1>
+  <p class="check-summary" id="check-summary" role="status">檢查中</p>
+  <div class="table-wrap" tabindex="0">
+    <table class="table" id="check-table" hidden>
+      <thead>
+        <tr>
+          <th scope="col">等級</th>
+          <th scope="col">檔案</th>
+          <th scope="col">區塊編號</th>
+          <th scope="col">欄位</th>
+          <th scope="col">問題</th>
+        </tr>
+      </thead>
+      <tbody id="check-rows"></tbody>
+    </table>
+  </div>
+  <noscript><p>本頁需要啟用 JavaScript 才能檢查。</p></noscript>
+</main>
+</body>
+</html>

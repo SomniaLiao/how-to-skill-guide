@@ -1,0 +1,6 @@
+japanese-qa-practice.zip
+└── japanese-qa-practice/
+    ├── SKILL.md
+    └── references/
+        ├── tara-temo.md
+        └── grammar-practice.md

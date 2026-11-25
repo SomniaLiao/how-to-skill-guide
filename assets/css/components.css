@@ -247,3 +247,9 @@ html[data-lang-mode="both"] .page-link a .t-ja { margin-top: 0; color: inherit; 
   .copy-button { display: none; }
   .code-body { white-space: pre-wrap; }
 }
+
+/* ---------- 內容檢查頁 ---------- */
+.check-page { max-width: 75rem; margin: 0 auto; padding: 3rem 1.5rem; }
+.check-summary { margin: 1rem 0 1.5rem; font-size: 1.25rem; }
+.check-error td:first-child { color: var(--color-kokihi); font-weight: 700; }
+.check-notice td:first-child { color: var(--color-ai); font-weight: 700; }
