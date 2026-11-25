@@ -133,7 +133,7 @@ html[data-lang-mode="both"] .note-label .t-ja { color: inherit; }
   color: var(--color-kurotsurubami);
   font-size: 0.8125rem;
 }
-html[data-lang-mode="both"] .shot figcaption .t { display: inline; margin-right: 0.5em; }
+.shot figcaption .t { display: inline; margin-right: 0.5em; }
 .shot-missing {
   display: grid;
   place-items: center;

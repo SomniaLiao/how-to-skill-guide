@@ -149,6 +149,8 @@ html[data-lang-mode="both"] .skip-link .t-ja { color: inherit; }
   font-size: 0.875rem;
 }
 
+.page-footer .t { display: inline; margin-right: 0.75em; }
+
 /* ---------- 章與小節 ---------- */
 .chapter { margin-top: 5rem; }
 

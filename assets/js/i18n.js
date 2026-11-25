@@ -15,13 +15,26 @@ let pageTitle = null;
 
 // ---------- 雙語文字的共用工具 ----------
 
+// 反引號包住的部分拆成 code 元素，其餘為文字節點。全部以 textContent 寫入
+function appendInline(parent, text) {
+  for (const part of text.split(/(`[^`]+`)/)) {
+    if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) {
+      const code = document.createElement('code');
+      code.textContent = part.slice(1, -1);
+      parent.append(code);
+    } else if (part) {
+      parent.append(part); // append 字串等同建立文字節點
+    }
+  }
+}
+
 // 把雙語文字輸出成兩個元素，由 CSS 決定顯示哪一個
 export function appendBilingual(parent, text, tag = 'span') {
   for (const [key, lang] of [['zh', 'zh-Hant-TW'], ['ja', 'ja']]) {
     const node = document.createElement(tag);
     node.className = `t t-${key}`;
     node.lang = lang;
-    node.textContent = text[key];
+    appendInline(node, text[key]);
     parent.append(node);
   }
   return parent;
