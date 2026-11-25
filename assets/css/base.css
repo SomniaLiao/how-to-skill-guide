@@ -222,6 +222,7 @@ html[data-lang-mode="both"] .skip-link .t-ja { color: inherit; }
   color: var(--color-binroji);
   cursor: pointer;
 }
+.sidebar-toggle[hidden] { display: none; }
 .sidebar-toggle:hover { background: var(--color-kinari); }
 
 /* 三條線以 CSS 繪製，不受字型影響 */

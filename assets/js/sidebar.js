@@ -1,5 +1,7 @@
 // 左側欄：目錄的建立、收合、手機抽屜與目前位置標示（規格書 4.2 至 4.4）。
 
+import { appendBilingual, attributeText } from './i18n.js';
+
 const STORAGE_KEY = 'htsg.sidebar';
 const DESKTOP = window.matchMedia('(min-width: 1024px)');
 const MOBILE = window.matchMedia('(max-width: 767.98px)');
@@ -12,22 +14,6 @@ function element(tag, className) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   return node;
-}
-
-// 把雙語文字輸出成兩個元素，由 CSS 決定顯示哪一個
-function appendBilingual(parent, text, tag = 'span') {
-  for (const [key, lang] of [['zh', 'zh-Hant-TW'], ['ja', 'ja']]) {
-    const node = element(tag, `t t-${key}`);
-    node.lang = lang;
-    node.textContent = text[key];
-    parent.append(node);
-  }
-  return parent;
-}
-
-// 屬性只能放一種語言：ja 模式用日語，其他模式用中文
-function attributeText(text) {
-  return root.dataset.langMode === 'ja' ? text.ja : text.zh;
 }
 
 // 無痕模式或停用儲存時，localStorage 可能直接丟出錯誤
@@ -95,7 +81,7 @@ function buildRail(chapters) {
   return rail;
 }
 
-function buildSidebar(sidebar, { strings, chapters, page }) {
+function buildSidebar(sidebar, { strings, chapters, page, langSwitch }) {
   const head = element('div', 'sidebar-head');
   const brand = element('div', 'sidebar-panel');
   brand.append(
@@ -106,15 +92,13 @@ function buildSidebar(sidebar, { strings, chapters, page }) {
 
   const scroll = element('div', 'sidebar-scroll');
   const panel = element('div', 'sidebar-panel');
-  const langSlot = element('div'); // 語言切換由 i18n.js 放進這裡
-  langSlot.dataset.slot = 'lang';
 
   const nav = element('nav');
   const navTitle = appendBilingual(element('div', 'toc-title'), strings['UI-06']);
   navTitle.id = 'toc-title';
   nav.setAttribute('aria-labelledby', navTitle.id);
   nav.append(navTitle, buildToc(chapters));
-  panel.append(langSlot, nav);
+  panel.append(langSwitch, nav);
 
   if (page === 'teacher') {
     const foot = element('div', 'sidebar-foot');
@@ -135,13 +119,14 @@ function buildSidebar(sidebar, { strings, chapters, page }) {
 // ---------- 進入點 ----------
 
 // chapters 的格式：[{ id, title: { zh, ja }, sections: [{ id, title }] }]
-export function initSidebar({ strings, chapters, page }) {
+// langSwitch 是 i18n.js 建立的語言切換元件
+export function initSidebar({ strings, chapters, page, langSwitch }) {
   const sidebar = document.getElementById('sidebar');
   const toggle = document.getElementById('sidebar-toggle');
   const backdrop = document.getElementById('sidebar-backdrop');
   const main = document.getElementById('main');
   const skipLink = document.querySelector('.skip-link');
-  const { scroll, railNav } = buildSidebar(sidebar, { strings, chapters, page });
+  const { scroll, railNav } = buildSidebar(sidebar, { strings, chapters, page, langSwitch });
 
   const isExpanded = () => root.dataset.sidebar === 'expanded';
   const isDrawerOpen = () => MOBILE.matches && isExpanded();
@@ -291,6 +276,11 @@ export function initSidebar({ strings, chapters, page }) {
   DESKTOP.addEventListener('change', applyLayout);
   MOBILE.addEventListener('change', applyLayout);
   document.addEventListener('htsg:langchange', updateLabels);
+  // 按上一頁還原舊畫面時，重新讀一次設定
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) applyLayout();
+  });
 
+  toggle.hidden = false;
   applyLayout();
 }
