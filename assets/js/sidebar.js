@@ -250,8 +250,10 @@ export function initSidebar({ strings, chapters, page, langSwitch }) {
     setCurrent(passed.length > 0 ? passed[passed.length - 1].id : null);
   }
 
-  // 標題越過畫面上方三成的位置時重新判斷
-  const observer = new IntersectionObserver(detectCurrent, { rootMargin: '0px 0px -70% 0px' });
+  // 標題越過畫面上方三成的位置時重新判斷。
+  // 上方的範圍設得很大，讓已經捲過去的標題都算在範圍內，
+  // 否則一次跳很遠時，標題沒有經過範圍，就不會收到通知
+  const observer = new IntersectionObserver(detectCurrent, { rootMargin: '1000000px 0px -70% 0px' });
   headings.forEach((item) => observer.observe(item.node));
 
   // 頁尾進入畫面時也要判斷，最後一節才標示得到

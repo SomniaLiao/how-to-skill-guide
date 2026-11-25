@@ -93,6 +93,8 @@ a { color: var(--color-ai); text-underline-offset: 0.2em; }
 html[data-lang-mode="zh"] .t-ja { display: none; }
 html[data-lang-mode="ja"] .t-zh { display: none; }
 html[data-lang-mode="both"] .t-ja { color: var(--color-kurotsurubami); margin-top: 0.25em; }
+/* 中日相同的文字只顯示一次。選擇器較長，才蓋得過標籤的 display: inline */
+html[data-lang-mode="both"] .t.t-ja.t-same { display: none; }
 
 /* ---------- 跳到主要內容 ---------- */
 .skip-link {

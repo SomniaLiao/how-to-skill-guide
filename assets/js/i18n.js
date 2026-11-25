@@ -34,6 +34,8 @@ export function appendBilingual(parent, text, tag = 'span') {
     const node = document.createElement(tag);
     node.className = `t t-${key}`;
     node.lang = lang;
+    // 中日文字完全相同時（例如平台名稱），雙語模式只顯示一次
+    if (key === 'ja' && text.ja === text.zh) node.classList.add('t-same');
     appendInline(node, text[key]);
     parent.append(node);
   }
