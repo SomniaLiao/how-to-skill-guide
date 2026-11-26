@@ -7,6 +7,7 @@ import { isHidden, renderBlock } from '../assets/js/render.js';
 import { BLOCK_TYPES, buildBlockForm, excerpt, ID_PATTERN, newBlock } from './fields.js';
 import { formatJson, today } from './github-api.js';
 import { findUnsafe } from './safety.js';
+import { buildZip, ZIP_SKILLS as ZIP_NAMES, zipPath } from './zip.js';
 import { editImage, groupShots, nextShotId, SHOT_DIR, shotName, shotPath, validateFile } from './shots.js';
 
 const PAGES = [
@@ -137,6 +138,7 @@ function keyOf(selection) {
     case 'ui': return `ui:${selection.id}`;
     case 'shot': return `shot:${selection.id}`;
     case 'shot-new': return 'shot-new';
+    case 'zip': return 'zip';
     default: return `template:${selection.path}`;
   }
 }
@@ -218,6 +220,9 @@ function templateGroup() {
   const summary = element('summary', 'tree-page-title');
   summary.append(label('AD-72'));
   const list = element('div', 'tree-blocks');
+  const zip = button('tree-settings', label('AD-156'), () => select({ kind: 'zip' }));
+  zip.dataset.key = keyOf({ kind: 'zip' });
+  list.append(zip);
   for (const path of state.templates) {
     const node = treeItem({ kind: 'template', path }, path.slice(TEMPLATE_DIR.length), '');
     node.classList.toggle('is-dirty', state.dirty.get(path)?.has(path) ?? false);
@@ -325,6 +330,7 @@ function renderEditor() {
   else if (current.kind === 'template') renderTemplateEditor(current);
   else if (current.kind === 'shot') renderShot(current);
   else if (current.kind === 'shot-new') renderNewShot();
+  else if (current.kind === 'zip') renderZip();
   else renderBlockEditor(current);
 }
 
@@ -841,6 +847,65 @@ function renderNewShot() {
   main.append(shotUpload(shotPath(id), 'AD-139', message, () => { state.selected = { kind: 'shot', id }; }), message);
 }
 
+// ---------- 下載用 ZIP ----------
+
+// ZIP 用的範本有未儲存的修改時不能產生，否則 ZIP 會是舊的內容
+const zipTemplatesDirty = () => [...state.dirty.keys()].some((path) => ZIP_SKILLS.some((prefix) => path.startsWith(prefix)));
+
+function renderZip() {
+  const { main } = state.nodes;
+  main.append(editorHead('ZIP', 'AD-156'), label('AD-157', 'editor-hint', 'p'));
+  const result = element('div', 'zip-result');
+  result.setAttribute('role', 'status');
+  const run = button('admin-button', label('AD-158'), () => regenerateZips(run, result));
+  if (zipTemplatesDirty()) {
+    run.disabled = true;
+    main.append(label('AD-161', 'editor-error', 'p'));
+  }
+  main.append(run, result);
+}
+
+// 兩個 ZIP 各一筆提交。覆蓋時附上 GitHub 上的 sha
+async function regenerateZips(trigger, result) {
+  if (zipTemplatesDirty()) {
+    result.replaceChildren(label('AD-161', 'editor-error', 'p'));
+    return;
+  }
+  trigger.disabled = true;
+  result.replaceChildren(label('AD-159', 'editor-hint', 'p'));
+  try {
+    const current = new Map((await state.client.listEntries('downloads/')).map((item) => [item.path, item.sha]));
+    const lists = [];
+    for (const skill of ZIP_NAMES) {
+      const { bytes, names } = await buildZip(state.client, skill);
+      await state.client.writeFile(zipPath(skill), { bytes }, { sha: current.get(zipPath(skill)), message: 'download: 重新產生 ZIP' });
+      lists.push([skill, names]);
+    }
+    result.replaceChildren(appendBilingual(element('p', 'check-ok'), fill(lookup('AD-160'), { count: String(lists.length) })));
+    // 列出 ZIP 的內容，確認沒有多餘的檔案
+    const detail = element('div', 'zip-list');
+    detail.append(label('AD-162', 'field-label'));
+    for (const [skill, names] of lists) {
+      const list = element('ul');
+      for (const name of names) {
+        const item = element('li');
+        const code = element('code');
+        code.textContent = name;
+        item.append(code);
+        list.append(item);
+      }
+      const title = element('p');
+      title.textContent = zipPath(skill);
+      detail.append(title, list);
+    }
+    result.append(detail);
+  } catch (error) {
+    result.replaceChildren(appendBilingual(element('p', 'editor-error'), state.describe(error)));
+  } finally {
+    trigger.disabled = false;
+  }
+}
+
 // ---------- 儲存（D-37 第 9 項、D-39） ----------
 
 export const hasUnsaved = () => state.dirty.size > 0;
@@ -952,7 +1017,11 @@ async function save() {
   refreshTree();
   updateSaveBar();
   const notes = [appendBilingual(element('p', 'check-ok'), fill(lookup('AD-123'), { count: String(saved) }))];
-  if (paths.some((path) => ZIP_SKILLS.some((prefix) => path.startsWith(prefix)))) notes.push(label('AD-118', 'editor-notice', 'p'));
+  if (paths.some((path) => ZIP_SKILLS.some((prefix) => path.startsWith(prefix)))) {
+    // 範本儲存後提示是否重新產生 ZIP（規格書 11.5 第三項）
+    const result = element('div');
+    notes.push(label('AD-118', 'editor-notice', 'p'), button('admin-button', label('AD-158'), (event) => regenerateZips(event.currentTarget, result)), result);
+  }
   saveMessage(...notes);
 }
 

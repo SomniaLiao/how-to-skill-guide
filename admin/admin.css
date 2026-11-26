@@ -451,3 +451,8 @@ html[data-lang-mode="both"] .editor-error .t-ja { color: inherit; }
   .admin-login { padding-top: 2.5rem; }
   .admin-panel { padding: 1.25rem 1rem; }
 }
+
+/* 下載用 ZIP */
+.zip-result { margin-top: 1rem; }
+.zip-list { margin-top: 0.75rem; font-size: 0.875rem; }
+.zip-list ul { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
