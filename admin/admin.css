@@ -338,6 +338,24 @@ html[data-lang-mode="both"] .admin-button-quiet .t-ja { color: inherit; }
 .add-message { flex-basis: 100%; color: var(--color-kokihi); font-size: 0.875rem; }
 html[data-lang-mode="both"] .add-message .t-ja { color: inherit; }
 
+/* 範本以等寬字型編輯，Tab 與縮排才對得齊 */
+.template-input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: var(--color-kinari);
+  font-family: var(--font-code);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  tab-size: 2;
+  resize: vertical;
+}
+.editor-error { color: var(--color-kokihi); }
+html[data-lang-mode="both"] .editor-error .t-ja { color: inherit; }
+.tree-group { margin-top: 1rem; }
+
 /* 預覽框模擬前台的紙張 */
 .preview-body { padding: 1rem 1.5rem 1.5rem; border: 1px solid var(--color-rikyu); background: var(--color-kinari); }
 .preview-body > .block:first-child,

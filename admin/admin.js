@@ -158,7 +158,7 @@ async function showApp(repo, notice = null) {
     setText(lead, ...describe(error));
     return;
   }
-  mountEditor($('editor'), { text });
+  mountEditor($('editor'), { text, errorText: (error) => text(...describe(error)) });
   if (notice) setText(lead, notice);
   else lead.replaceChildren();
 }

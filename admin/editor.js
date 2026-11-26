@@ -1,22 +1,29 @@
 // 編輯器：左側清單、以編號搜尋、區塊表單、即時檢查與預覽（規格書 11.3、D-37）。
 // 區塊的新增、刪除、移動、隱藏，以及章標題的修改（P2-3c）。
 
-import { checkBlock, checkFiles, ERROR, LEVEL_TEXT } from '../assets/js/check.js';
+import { checkBlock, checkFiles, checkUi, ERROR, LEVEL_TEXT } from '../assets/js/check.js';
 import { appendBilingual, attributeText } from '../assets/js/i18n.js';
 import { isHidden, renderBlock } from '../assets/js/render.js';
 import { BLOCK_TYPES, buildBlockForm, excerpt, ID_PATTERN, newBlock } from './fields.js';
+import { findUnsafe } from './safety.js';
 
 const PAGES = [
   { key: 'student', path: 'content/student.json', name: 'AD-49' },
   { key: 'teacher', path: 'content/teacher.json', name: 'AD-50' },
 ];
 const UI_PATH = 'content/ui.json';
+const TEMPLATE_DIR = 'templates/';
+// 這兩個資料夾的範本會放進學生下載的 ZIP（規格書第 10 節）
+const ZIP_SKILLS = ['templates/japanese-qa-practice/', 'templates/japanese-tts-grammar-coach/'];
 const INTRO = 'intro';
 const REFRESH_MS = 200; // 輸入停下來後多久更新檢查與預覽
 
-// docs：path → { data, sha }。dirty：path → 修改過的編號（區塊或章）。
-// selected：{ kind: 'block', page, block } 或 { kind: 'section', page, sectionId }
-const state = { docs: new Map(), dirty: new Map(), selected: null, text: null, nodes: null };
+// docs：path → { data, sha }（JSON）或 { text, sha }（範本，選到時才讀取）。
+// dirty：path → 修改過的編號（區塊、章、介面文字編號，範本則是檔案路徑）。
+// selected 的種類：block、section、ui、template
+const state = {
+  docs: new Map(), dirty: new Map(), templates: [], client: null, selected: null, text: null, nodes: null,
+};
 
 function element(tag, className) {
   const node = document.createElement(tag);
@@ -57,9 +64,14 @@ function fill(textObject, values) {
 export async function loadDocs(client) {
   state.docs.clear();
   state.dirty.clear();
+  state.client = client;
   const paths = [UI_PATH, ...PAGES.map((page) => page.path)];
-  const results = await Promise.all(paths.map((path) => client.readJson(path)));
+  const [templates, ...results] = await Promise.all([
+    client.listFiles(TEMPLATE_DIR),
+    ...paths.map((path) => client.readJson(path)),
+  ]);
   paths.forEach((path, index) => state.docs.set(path, results[index]));
+  state.templates = templates;
 }
 
 // 某一頁的所有章，第 0 項是開始之前（intro）。chapter 是資料中的章物件，修改標題時用
@@ -109,10 +121,21 @@ function thisMonth() {
 
 // ---------- 左側清單 ----------
 
+// 清單中每個項目的識別字串，用來標示目前選擇的項目
+function keyOf(selection) {
+  switch (selection.kind) {
+    case 'block': return `block:${selection.page.key}:${selection.block.id}`;
+    case 'section': return `section:${selection.page.key}:${selection.sectionId}`;
+    case 'ui': return `ui:${selection.id}`;
+    default: return `template:${selection.path}`;
+  }
+}
+
 function blockButton(page, block) {
   const node = element('button', 'tree-block');
   node.type = 'button';
   node.dataset.id = block.id;
+  node.dataset.key = keyOf({ kind: 'block', page, block });
   const id = element('span', 'tree-id');
   id.textContent = block.id;
   const type = label(BLOCK_TYPES[block.type]?.name ?? 'AD-95', 'tree-type');
@@ -150,7 +173,7 @@ function buildTree() {
       const list = element('div', 'tree-blocks');
       // 每章的第一項是「本章設定」：修改章標題、在章的最後新增區塊
       const settings = button('tree-settings', label('AD-108'), () => select({ kind: 'section', page, sectionId: section.id }));
-      settings.dataset.section = section.id;
+      settings.dataset.key = keyOf({ kind: 'section', page, sectionId: section.id });
       list.append(settings);
       for (const block of section.blocks) list.append(blockButton(page, block));
       sectionBox.append(head, list);
@@ -158,17 +181,68 @@ function buildTree() {
     }
     tree.append(pageBox);
   }
+  tree.append(uiGroup(), templateGroup());
   return tree;
+}
+
+// 介面文字：每個編號一項
+function uiGroup() {
+  const group = element('details', 'tree-page tree-group');
+  group.dataset.group = 'ui';
+  const summary = element('summary', 'tree-page-title');
+  summary.append(label('AD-114'));
+  const list = element('div', 'tree-blocks');
+  for (const [id, words] of Object.entries(state.docs.get(UI_PATH).data.strings)) {
+    const node = treeItem({ kind: 'ui', id }, id, words.zh);
+    node.classList.toggle('is-dirty', state.dirty.get(UI_PATH)?.has(id) ?? false);
+    list.append(node);
+  }
+  group.append(summary, list);
+  return group;
+}
+
+// 範本檔案：以 templates/ 之後的路徑顯示
+function templateGroup() {
+  const group = element('details', 'tree-page tree-group');
+  group.dataset.group = 'templates';
+  const summary = element('summary', 'tree-page-title');
+  summary.append(label('AD-72'));
+  const list = element('div', 'tree-blocks');
+  for (const path of state.templates) {
+    const node = treeItem({ kind: 'template', path }, path.slice(TEMPLATE_DIR.length), '');
+    node.classList.toggle('is-dirty', state.dirty.get(path)?.has(path) ?? false);
+    list.append(node);
+  }
+  group.append(summary, list);
+  return group;
+}
+
+function treeItem(selection, title, snippetText) {
+  const node = element('button', 'tree-block');
+  node.type = 'button';
+  node.dataset.key = keyOf(selection);
+  const id = element('span', 'tree-id');
+  id.textContent = title;
+  node.append(id);
+  if (snippetText) {
+    const snippet = element('span', 'tree-excerpt');
+    snippet.lang = 'zh-Hant-TW';
+    snippet.textContent = snippetText;
+    node.append(snippet);
+  }
+  node.addEventListener('click', () => select(selection));
+  return node;
 }
 
 // 結構改變（新增、刪除、移動）後重建清單，保留展開的章與捲動位置
 function refreshTree() {
   const { nav, tree } = state.nodes;
-  const open = new Set([...tree.querySelectorAll('details.tree-section[open]')].map((node) => `${node.dataset.page}/${node.dataset.section}`));
+  const keyOfDetails = (node) => node.dataset.group ?? `${node.dataset.page}/${node.dataset.section}`;
+  const open = new Set([...tree.querySelectorAll('details.tree-section[open], details.tree-group[open]')].map(keyOfDetails));
   const scroll = nav.scrollTop;
   const next = buildTree();
-  for (const node of next.querySelectorAll('details.tree-section')) {
-    node.open = open.has(`${node.dataset.page}/${node.dataset.section}`);
+  for (const node of next.querySelectorAll('details.tree-section, details.tree-group')) {
+    node.open = open.has(keyOfDetails(node));
   }
   tree.replaceWith(next);
   state.nodes.tree = next;
@@ -178,18 +252,12 @@ function refreshTree() {
 
 // 清單中標示目前選擇的項目，並展開所在的章
 function markCurrent() {
-  const current = state.selected;
-  for (const node of state.nodes.tree.querySelectorAll('.tree-block, .tree-settings')) {
-    const pageKey = node.closest('.tree-section').dataset.page;
-    let active = false;
-    if (current && pageKey === current.page.key) {
-      active = current.kind === 'block'
-        ? node.classList.contains('tree-block') && node.dataset.id === current.block.id
-        : node.classList.contains('tree-settings') && node.dataset.section === current.sectionId;
-    }
-    if (active) {
+  const key = state.selected ? keyOf(state.selected) : null;
+  for (const node of state.nodes.tree.querySelectorAll('[data-key]')) {
+    if (node.dataset.key === key) {
       node.setAttribute('aria-current', 'true');
-      node.closest('details.tree-section').open = true;
+      // 所在的每一層都展開，才看得到
+      for (let box = node.closest('details'); box; box = box.parentElement.closest('details')) box.open = true;
       node.scrollIntoView({ block: 'nearest' });
     } else {
       node.removeAttribute('aria-current');
@@ -243,6 +311,8 @@ function renderEditor() {
   const current = state.selected;
   if (!current) main.append(label('AD-51', 'editor-empty', 'p'));
   else if (current.kind === 'section') renderSection(current);
+  else if (current.kind === 'ui') renderUiEditor(current);
+  else if (current.kind === 'template') renderTemplateEditor(current);
   else renderBlockEditor(current);
 }
 
@@ -335,8 +405,108 @@ function blockActions(page, section, block) {
 
 function updateSelectedButton() {
   const { page, block } = state.selected;
-  const node = state.nodes.tree.querySelector(`.tree-section[data-page="${page.key}"] .tree-block[data-id="${CSS.escape(block.id)}"]`);
+  const node = state.nodes.tree.querySelector(`[data-key="${CSS.escape(keyOf(state.selected))}"]`);
   if (node) updateBlockButton(node, page, block);
+}
+
+// 介面文字與範本的已修改標示
+function markTreeDirty(selection) {
+  state.nodes.tree.querySelector(`[data-key="${CSS.escape(keyOf(selection))}"]`)?.classList.add('is-dirty');
+}
+
+function editorHead(titleText, typeLabelId) {
+  const head = element('div', 'editor-head');
+  const title = element('h2', 'editor-title');
+  const id = element('span', 'editor-id');
+  id.textContent = titleText;
+  title.append(id, label(typeLabelId, 'editor-type'));
+  head.append(title);
+  return head;
+}
+
+// ---------- 介面文字 ----------
+
+function renderUiEditor(selection) {
+  const { main } = state.nodes;
+  const strings = state.docs.get(UI_PATH).data.strings;
+  const text = strings[selection.id];
+  const checkBox = element('section', 'editor-check');
+  checkBox.append(label('AD-53', 'editor-section-title', 'h3'), element('div', 'check-list'));
+  const refresh = () => showIssues(checkBox.querySelector('.check-list'), checkUi({ strings: { [selection.id]: text } }, UI_PATH));
+
+  const ctx = {
+    label,
+    attr,
+    onChange: () => {
+      markDirty(UI_PATH, selection.id);
+      markTreeDirty(selection);
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(refresh, REFRESH_MS);
+    },
+    rerender,
+  };
+  // 與區塊共用中日並排的欄位
+  const form = buildBlockForm({ type: 'subheading', text }, ctx);
+  main.append(editorHead(selection.id, 'AD-114'), label('AD-115', 'editor-hint', 'p'), form, checkBox);
+  refresh();
+}
+
+// ---------- 範本 ----------
+
+async function renderTemplateEditor(selection) {
+  const { main } = state.nodes;
+  const { path } = selection;
+  main.append(editorHead(path.slice(TEMPLATE_DIR.length), 'AD-72'));
+
+  // 範本選到時才讀取，讀過就留在記憶體中
+  if (!state.docs.has(path)) {
+    const loading = label('AD-117', 'editor-hint', 'p');
+    main.append(loading);
+    try {
+      state.docs.set(path, await state.client.readText(path));
+    } catch (error) {
+      loading.remove();
+      main.append(appendBilingual(element('p', 'editor-error'), state.describe(error)));
+      return;
+    }
+    // 讀取期間使用者可能已選了別的項目
+    if (state.selected !== selection) return;
+    loading.remove();
+  }
+
+  const doc = state.docs.get(path);
+  main.append(label('AD-116', 'editor-hint', 'p'));
+  if (ZIP_SKILLS.some((prefix) => path.startsWith(prefix))) main.append(label('AD-118', 'editor-notice', 'p'));
+
+  const field = element('label', 'field');
+  field.append(label('AD-119', 'field-label'));
+  const input = element('textarea', 'template-input');
+  input.value = doc.text;
+  input.rows = 24;
+  input.spellcheck = false;
+  // 範本多為日文，用日文字形顯示
+  input.lang = 'ja';
+  field.append(input);
+
+  // 範本不做文字規則檢查，只做儲存前的安全檢查，先在這裡提示
+  const warning = element('div', 'check-list');
+  const refresh = () => {
+    warning.replaceChildren();
+    const unsafe = findUnsafe(doc.text);
+    if (unsafe) {
+      const id = { email: 'AD-33', token: 'AD-34', key: 'AD-35' }[unsafe];
+      warning.append(label(id, 'editor-error', 'p'));
+    }
+  };
+  input.addEventListener('input', () => {
+    doc.text = input.value;
+    markDirty(path, path);
+    markTreeDirty(selection);
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(refresh, REFRESH_MS);
+  });
+  main.append(field, warning);
+  refresh();
 }
 
 // 檢查與預覽。檢查用的規則與 check.html 相同
@@ -494,9 +664,10 @@ function renderSection({ page, sectionId, notice }) {
 
 // ---------- 進入點 ----------
 
-// container 是放編輯器的元素。text(id) 回傳後台文字
-export function mountEditor(container, { text }) {
+// container 是放編輯器的元素。text(id) 回傳後台文字，errorText(error) 回傳錯誤的雙語說明
+export function mountEditor(container, { text, errorText }) {
   state.text = text;
+  state.describe = errorText;
   const nav = element('nav', 'editor-nav');
   const tree = buildTree();
   nav.append(buildSearch(), tree);
