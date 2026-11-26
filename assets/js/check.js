@@ -144,7 +144,7 @@ export function checkPage(content, file, files = []) {
   return issues;
 }
 
-// 檢查 ui.json
+// 檢查 ui.json 與 admin/strings.json
 export function checkUi(content, file) {
   const issues = [];
   for (const [id, text] of Object.entries(content.strings ?? {})) {
@@ -172,13 +172,15 @@ export async function checkFiles(files) {
 
 // ---------- check.html ----------
 
-async function loadAndCheck(name, files) {
-  const file = `content/${name}.json`;
+// 介面文字檔：前台的 ui.json 與後台的 strings.json 結構相同（D-38）
+const STRING_FILES = ['content/ui.json', 'admin/strings.json'];
+
+async function loadAndCheck(file, files) {
   try {
     const response = await fetch(file, { cache: 'no-store' });
     if (!response.ok) throw new Error(`回應 ${response.status}`);
     const content = await response.json();
-    return name === 'ui' ? checkUi(content, file) : checkPage(content, file, files);
+    return STRING_FILES.includes(file) ? checkUi(content, file) : checkPage(content, file, files);
   } catch (error) {
     return [{ file, id: '整個檔案', field: '整個檔案', level: ERROR, message: `無法讀取：${error.message}` }];
   }
@@ -206,7 +208,8 @@ function showResult(issues) {
 
 async function runCheckPage() {
   const files = [];
-  const issues = (await Promise.all(['ui', 'student', 'teacher'].map((name) => loadAndCheck(name, files)))).flat();
+  const targets = [...STRING_FILES, 'content/student.json', 'content/teacher.json'];
+  const issues = (await Promise.all(targets.map((file) => loadAndCheck(file, files)))).flat();
   issues.push(...await checkFiles(files));
   showResult(issues);
 }

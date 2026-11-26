@@ -14,63 +14,76 @@
 <script type="module" src="admin/admin.js"></script>
 </head>
 <body data-page="admin">
+<!-- 畫面上的文字由 admin.js 依 data-str 的編號，從 admin/strings.json 寫入 -->
 
 <!-- 登入畫面。程式確認沒有已保存的權杖後才顯示 -->
 <main class="admin-login" id="login-view" hidden>
-  <h1 class="admin-title font-head" tabindex="-1">內容後台</h1>
-  <p class="admin-lead">以 GitHub 權杖登入後，可以直接修改網站的內容與範本。</p>
+  <div class="admin-lang-slot"></div>
+  <h1 class="admin-title font-head" tabindex="-1" data-str="AD-01"></h1>
+  <p class="admin-lead" data-str="AD-02"></p>
 
   <section class="admin-panel" aria-labelledby="token-guide-title">
-    <h2 class="admin-panel-title" id="token-guide-title">建立權杖</h2>
+    <h2 class="admin-panel-title" id="token-guide-title" data-str="AD-03"></h2>
     <ol class="admin-steps">
-      <li>開啟 GitHub 的 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Fine-grained tokens</a> 建立頁面。</li>
-      <li>「Expiration」設為 90 天以內。</li>
-      <li>「Repository access」選「Only select repositories」，只選這個網站的 repo。</li>
-      <li>「Permissions」中只把「Contents」設為「Read and write」。其他權限不要開啟，Metadata 會自動設為唯讀，這是正常的。</li>
-      <li>點「Generate token」，複製產生的權杖，貼到下方的欄位。</li>
+      <li>
+        <span data-str="AD-04"></span>
+        <a class="admin-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer" data-str="AD-05"></a>
+      </li>
+      <li data-str="AD-06"></li>
+      <li data-str="AD-07"></li>
+      <li data-str="AD-08"></li>
+      <li data-str="AD-09"></li>
     </ol>
-    <p class="admin-warning">權杖等同這個 repo 的鑰匙。只貼在這個頁面，不要貼到聊天、文件或任何檔案中。懷疑外洩時，請立刻到同一個頁面撤銷。</p>
+    <p class="admin-warning" data-str="AD-10"></p>
   </section>
 
   <form class="admin-panel admin-form" id="login-form" novalidate>
-    <h2 class="admin-panel-title">登入</h2>
+    <h2 class="admin-panel-title" data-str="AD-11"></h2>
 
     <label class="admin-field">
-      <span class="admin-label">Repo</span>
-      <span class="admin-hint" id="repo-hint">格式為「帳號名稱/repo 名稱」。在 GitHub Pages 上開啟時會自動填入。</span>
+      <span class="admin-label" data-str="AD-12"></span>
+      <span class="admin-hint" id="repo-hint" data-str="AD-13"></span>
       <input type="text" id="repo-input" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="repo-hint" required>
     </label>
 
     <label class="admin-field">
-      <span class="admin-label">權杖</span>
+      <span class="admin-label" data-str="AD-14"></span>
       <input type="password" id="token-input" autocomplete="off" spellcheck="false" autocapitalize="off" required>
     </label>
 
     <label class="admin-check">
       <input type="checkbox" id="remember-input">
-      <span>記住此裝置</span>
+      <span data-str="AD-15"></span>
     </label>
-    <p class="admin-hint">不勾選時，關閉分頁就會登出。共用的電腦請不要勾選。</p>
+    <p class="admin-hint" data-str="AD-16"></p>
 
-    <p class="admin-message" id="login-message" role="alert"></p>
-    <button type="submit" class="admin-button" id="login-button">登入</button>
+    <div class="admin-message" id="login-message" role="alert"></div>
+    <button type="submit" class="admin-button" id="login-button" data-str="AD-11"></button>
   </form>
 </main>
 
 <!-- 登入後的畫面。編輯器在 P2-3 加入 -->
 <div class="admin-app" id="app-view" hidden>
   <header class="admin-header">
-    <span class="admin-header-title font-head">內容後台</span>
+    <span class="admin-header-title font-head" data-str="AD-01"></span>
     <span class="admin-repo" id="repo-name"></span>
-    <button type="button" class="admin-button admin-button-quiet" id="logout-button">登出</button>
+    <div class="admin-lang-slot"></div>
+    <button type="button" class="admin-button admin-button-quiet" id="logout-button" data-str="AD-17"></button>
   </header>
   <main class="admin-main" id="admin-main">
-    <h1 class="admin-title font-head" tabindex="-1">已登入</h1>
-    <p class="admin-lead">編輯功能將在下一步加入。</p>
+    <h1 class="admin-title font-head" tabindex="-1" data-str="AD-19"></h1>
+    <div class="admin-lead" id="app-lead" data-str="AD-20"></div>
   </main>
 </div>
 
-<p class="admin-loading" id="loading-view">載入中</p>
-<noscript><p>本頁需要啟用 JavaScript 才能使用。</p></noscript>
+<!-- 文字檔讀進來之前只能顯示固定的文字，所以這裡直接寫中日兩種 -->
+<div class="admin-loading" id="loading-view" role="status">
+  <p class="t t-zh" lang="zh-Hant-TW">載入中</p>
+  <p class="t t-ja" lang="ja">読み込み中</p>
+</div>
+<noscript>
+  <p lang="zh-Hant-TW">本頁需要啟用 JavaScript 才能使用。</p>
+  <p lang="ja">このページを使うには、JavaScriptを有効にしてください。</p>
+</noscript>
 </body>
 </html>

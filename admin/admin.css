@@ -17,6 +17,35 @@ body[data-page="admin"] { min-height: 100vh; background: var(--color-kinari); }
 
 .admin-loading { margin: 4rem 1rem; text-align: center; color: var(--color-kurotsurubami); }
 
+/* ---------- 雙語（D-38） ---------- */
+/* 按鈕、欄位名稱、連結這類短文字，雙語時中日排在同一行 */
+:is(.admin-button, .admin-label, .admin-check, .admin-link, .admin-header-title) .t {
+  display: inline;
+  margin-top: 0;
+}
+html[data-lang-mode="both"] :is(.admin-button, .admin-label, .admin-check, .admin-link, .admin-header-title) .t-zh::after {
+  content: "／";
+  display: inline-block; /* 連結的底線不延伸到分隔符號 */
+  margin: 0 0.25em;
+  color: var(--color-rikyu);
+}
+/* 深色按鈕上的松葉色看不清楚，改用按鈕本身的文字顏色 */
+html[data-lang-mode="both"] .admin-button .t-ja { color: inherit; }
+html[data-lang-mode="both"] .admin-button .t-zh::after { color: inherit; }
+/* 中日相同時（例如 Repo）只顯示一次，也不需要分隔符號 */
+html[data-lang-mode="both"] .t-zh:has(+ .t-same)::after { content: none; }
+
+/* 語言切換：登入畫面放在右上，登入後放在頂端列 */
+.admin-lang-slot .lang-switch { margin: 0; padding: 0; }
+.admin-login .admin-lang-slot { display: flex; justify-content: flex-end; margin-bottom: 1.5rem; }
+.admin-login .admin-lang-slot .lang-switch { width: 16rem; max-width: 100%; }
+.admin-header .admin-lang-slot .lang-switch { width: 15rem; }
+.admin-header .lang-switch legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.admin-header .lang-option span { min-height: 36px; }
+.admin-header .lang-switch-options { margin-top: 0; }
+
+.admin-link { display: inline-block; margin-top: 0.25rem; }
+
 /* ---------- 登入畫面 ---------- */
 .admin-login {
   max-width: 38rem;
@@ -78,6 +107,8 @@ body[data-page="admin"] { min-height: 100vh; background: var(--color-kinari); }
 .admin-check + .admin-hint { margin-top: 0.125rem; padding-left: 1.625rem; }
 
 .admin-message { min-height: 1.8em; margin-top: 1.25rem; color: var(--color-kokihi); }
+/* 錯誤訊息的日語也要用深緋，才看得出是同一則提醒 */
+html[data-lang-mode="both"] .admin-message .t-ja { color: inherit; }
 .admin-message:empty { min-height: 0; margin-top: 0.5rem; }
 
 /* ---------- 按鈕 ---------- */

@@ -1,14 +1,48 @@
-// 後台的進入點：權杖登入、登出與畫面切換（規格書 11.1）。
+// 後台的進入點：介面文字、語言切換、權杖登入與登出（規格書 11.1、D-38）。
 
+import { appendBilingual, createLangSwitch, initLangMode, setPageTitle } from '../assets/js/i18n.js';
 import { ApiError, createClient, isValidRepo } from './github-api.js';
 
 const TOKEN_KEY = 'htsg.admin.token';
 const REPO_KEY = 'htsg.admin.repo';
 
+// 介面文字讀不到時，只能用寫在程式裡的這一句
+const LOAD_ERROR = {
+  zh: '後台的介面文字載入失敗，請重新整理頁面。',
+  ja: '管理画面の表示用テキストを読み込めませんでした。ページを再読み込みしてください。',
+};
+
 const $ = (id) => document.getElementById(id);
 const views = { loading: $('loading-view'), login: $('login-view'), app: $('app-view') };
 
+let strings = {};
+let langSwitch = null;
 let client = null;
+
+// ---------- 介面文字 ----------
+
+// 取得編號對應的雙語文字。{status} 這類的位置換成實際的值
+function text(id, values = {}) {
+  const source = strings[id] ?? { zh: id, ja: id };
+  const fill = (value) => value.replace(/\{(\w+)\}/g, (match, key) => (key in values ? String(values[key]) : match));
+  return { zh: fill(source.zh), ja: fill(source.ja) };
+}
+
+// 把雙語文字寫進元素，先清空原本的內容
+function setText(node, id, values) {
+  node.replaceChildren();
+  appendBilingual(node, text(id, values));
+}
+
+function fillStaticText() {
+  for (const node of document.querySelectorAll('[data-str]')) setText(node, node.dataset.str);
+}
+
+async function loadStrings() {
+  const response = await fetch('admin/strings.json', { cache: 'no-store' });
+  if (!response.ok) throw new Error(String(response.status));
+  return (await response.json()).strings;
+}
 
 // ---------- 保存 ----------
 
@@ -58,37 +92,43 @@ function repoFromLocation() {
 
 function show(name) {
   for (const [key, view] of Object.entries(views)) view.hidden = key !== name;
+  // 語言切換只有一個，跟著畫面搬過去。做兩個的話，選項會被瀏覽器當成同一組
+  const slot = views[name].querySelector('.admin-lang-slot');
+  if (slot && langSwitch) slot.append(langSwitch);
   // 換畫面後把焦點移到標題，螢幕報讀器才知道內容變了
   views[name].querySelector('h1')?.focus();
 }
 
-function setMessage(text) {
-  $('login-message').textContent = text;
+// id 為空時清除訊息
+function setMessage(id, values) {
+  const node = $('login-message');
+  if (id) setText(node, id, values);
+  else node.replaceChildren();
 }
 
 // 只依錯誤種類顯示固定的文字，不顯示 GitHub 的回應內容
 function describe(error) {
-  if (!(error instanceof ApiError)) return '發生未預期的錯誤，請重新整理頁面。';
+  if (!(error instanceof ApiError)) return ['AD-30'];
   switch (error.kind) {
-    case 'network': return '無法連線到 GitHub。請確認網路後再試一次。';
-    case 'unauthorized': return '權杖無效或已過期，請重新登入。';
-    case 'not-found': return '找不到這個 repo，或權杖沒有它的權限。請確認 repo 名稱與權杖的「Repository access」。';
-    case 'forbidden': return 'GitHub 拒絕了這次的要求，可能是權杖的權限不足，或短時間內要求太多次。請稍後再試。';
-    default: return `GitHub 回應錯誤（代碼 ${error.status}），請稍後再試。`;
+    case 'network': return ['AD-25'];
+    case 'unauthorized': return ['AD-26'];
+    case 'not-found': return ['AD-27'];
+    case 'forbidden': return ['AD-28'];
+    default: return ['AD-29', { status: error.status }];
   }
 }
 
-function showLogin(message = '') {
+function showLogin(message = []) {
   client = null;
   $('repo-input').value = loadRepo();
-  setMessage(message);
+  setMessage(...message);
   show('login');
 }
 
 // 任何一次 API 回應 401，都清除權杖並回到登入畫面
 function handleUnauthorized() {
   clearToken();
-  showLogin('權杖無效或已過期，請重新登入。');
+  showLogin(['AD-26']);
 }
 
 function showApp(repo) {
@@ -107,25 +147,25 @@ async function login(event) {
   const token = tokenInput.value.trim();
 
   if (!isValidRepo(repo)) {
-    setMessage('Repo 的格式應為「帳號名稱/repo 名稱」。');
+    setMessage('AD-23');
     repoInput.focus();
     return;
   }
   // 權杖不會有空白。含空白多半是複製時多選了文字
   if (!token || /\s/.test(token)) {
-    setMessage('請貼上權杖。權杖中不會有空白。');
+    setMessage('AD-24');
     tokenInput.focus();
     return;
   }
 
   button.disabled = true;
-  setMessage('確認中');
+  setMessage('AD-21');
   // 登入時的 401 只顯示訊息，不需要另外清除（還沒保存）
   const candidate = createClient({ token, repo, onUnauthorized: () => {} });
   try {
     await candidate.verify();
   } catch (error) {
-    setMessage(describe(error));
+    setMessage(...describe(error));
     button.disabled = false;
     return;
   }
@@ -138,23 +178,36 @@ async function login(event) {
   tokenInput.value = '';
   $('remember-input').checked = false;
   client = createClient({ token, repo, onUnauthorized: handleUnauthorized });
+  // 瀏覽器不允許儲存時仍可使用，只是重新整理後要再登入
+  setText($('app-lead'), saved ? 'AD-20' : 'AD-31');
   showApp(repo);
-  if (!saved) {
-    // 瀏覽器不允許儲存時仍可使用，只是重新整理後要再登入
-    $('admin-main').querySelector('.admin-lead').textContent = '瀏覽器不允許儲存權杖，重新整理頁面後需要再登入一次。';
-  }
 }
 
 function logout() {
   clearToken();
-  showLogin('已登出。');
+  showLogin(['AD-22']);
 }
 
-// 開啟頁面時，有保存的權杖就先確認它還能用
+// ---------- 開始 ----------
+
 async function start() {
+  initLangMode(); // 與前台共用語言設定
+
+  try {
+    strings = await loadStrings();
+  } catch {
+    views.loading.replaceChildren();
+    appendBilingual(views.loading, LOAD_ERROR, 'p');
+    return;
+  }
+  fillStaticText();
+  setPageTitle(strings['AD-01']);
+  langSwitch = createLangSwitch(strings['AD-18']);
+
   $('login-form').addEventListener('submit', login);
   $('logout-button').addEventListener('click', logout);
 
+  // 有保存的權杖就先確認它還能用
   const token = loadToken();
   const repo = loadRepo();
   if (!token || !isValidRepo(repo)) {
