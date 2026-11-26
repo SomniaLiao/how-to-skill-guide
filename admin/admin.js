@@ -1,6 +1,7 @@
 // 後台的進入點：介面文字、語言切換、權杖登入與登出（規格書 11.1、D-38）。
 
 import { appendBilingual, createLangSwitch, initLangMode, setPageTitle } from '../assets/js/i18n.js';
+import { loadDocs, mountEditor, unmountEditor } from './editor.js';
 import { ApiError, createClient, formatJson, isValidRepo, today } from './github-api.js';
 
 const TOKEN_KEY = 'htsg.admin.token';
@@ -136,12 +137,30 @@ function showLogin(message = []) {
 // 任何一次 API 回應 401，都清除權杖並回到登入畫面
 function handleUnauthorized() {
   clearToken();
+  unmountEditor($('editor'));
   showLogin(['AD-26']);
 }
 
-function showApp(repo) {
+// 進入編輯畫面：先讀取網站內容，讀完才建立編輯器。
+// notice 是讀取完成後仍要顯示的訊息（例如無法保存權杖）
+async function showApp(repo, notice = null) {
   $('repo-name').textContent = repo;
+  const lead = $('app-lead');
+  lead.classList.remove('is-error');
+  setText(lead, 'AD-93');
   show('app');
+  try {
+    await loadDocs(client);
+  } catch (error) {
+    // 401 已由 handleUnauthorized 處理並回到登入畫面
+    if (error.kind === 'unauthorized') return;
+    lead.classList.add('is-error');
+    setText(lead, ...describe(error));
+    return;
+  }
+  mountEditor($('editor'), { text });
+  if (notice) setText(lead, notice);
+  else lead.replaceChildren();
 }
 
 // ---------- 登入與登出 ----------
@@ -187,12 +206,12 @@ async function login(event) {
   $('remember-input').checked = false;
   client = createClient({ token, repo, onUnauthorized: handleUnauthorized });
   // 瀏覽器不允許儲存時仍可使用，只是重新整理後要再登入
-  setText($('app-lead'), saved ? 'AD-20' : 'AD-31');
-  showApp(repo);
+  showApp(repo, saved ? null : 'AD-31');
 }
 
 function logout() {
   clearToken();
+  unmountEditor($('editor'));
   $('test-log').replaceChildren();
   showLogin(['AD-22']);
 }

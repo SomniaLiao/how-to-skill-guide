@@ -10,6 +10,7 @@
 <title>內容後台</title>
 <link rel="icon" href="assets/img/icons/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="admin/admin.css">
 <script type="module" src="admin/admin.js"></script>
 </head>
@@ -71,8 +72,10 @@
     <button type="button" class="admin-button admin-button-quiet" id="logout-button" data-str="AD-17"></button>
   </header>
   <main class="admin-main" id="admin-main">
-    <h1 class="admin-title font-head" tabindex="-1" data-str="AD-19"></h1>
-    <div class="admin-lead" id="app-lead" data-str="AD-20"></div>
+    <h1 class="visually-hidden" tabindex="-1" data-str="AD-01"></h1>
+    <!-- 讀取中、錯誤、無法保存權杖等狀態訊息 -->
+    <div class="admin-notice" id="app-lead" role="status"></div>
+    <div class="admin-workspace" id="editor"></div>
 
     <!-- P2-2 的連線測試。P2-3 加入編輯器後移除 -->
     <section class="admin-panel" aria-labelledby="test-title">

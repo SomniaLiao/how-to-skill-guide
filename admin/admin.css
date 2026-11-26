@@ -152,7 +152,175 @@ html[data-lang-mode="both"] .admin-message .t-ja { color: inherit; }
 .admin-log-error { color: var(--color-kokihi); }
 html[data-lang-mode="both"] .admin-log-error .t-ja { color: inherit; }
 
-.admin-main { max-width: 60rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+.admin-main { max-width: 96rem; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+.admin-notice:empty { display: none; }
+.admin-notice { margin-bottom: 1rem; color: var(--color-kurotsurubami); }
+.admin-notice.is-error { color: var(--color-kokihi); }
+html[data-lang-mode="both"] .admin-notice.is-error .t-ja { color: inherit; }
+
+/* ---------- 編輯器（P2-3） ---------- */
+/* 左側清單固定寬度並各自捲動，右側是編輯區 */
+.admin-workspace {
+  display: grid;
+  grid-template-columns: 20rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.admin-workspace:empty { display: none; }
+
+.editor-nav {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.9375rem;
+}
+
+.tree-search { margin-bottom: 1rem; }
+.tree-search-field { display: block; }
+.tree-search-message { margin-top: 0.375rem; color: var(--color-kokihi); font-size: 0.875rem; }
+html[data-lang-mode="both"] .tree-search-message .t-ja { color: inherit; }
+
+.tree-page + .tree-page { margin-top: 1rem; }
+.tree-page-title { color: var(--color-tetsukon); font-weight: 700; cursor: pointer; }
+.tree-section { margin: 0.25rem 0 0 0.5rem; }
+.tree-section-title { display: list-item; cursor: pointer; }
+.tree-section-title > span:last-child .t { display: inline; margin-right: 0.5em; }
+.tree-num { display: inline-block; min-width: 1.5em; color: var(--color-chitose); font-weight: 700; }
+.tree-page-title .t { display: inline; margin-right: 0.5em; }
+
+.tree-blocks { margin: 0.25rem 0 0.5rem 0.75rem; }
+.tree-block {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.5rem;
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: none;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+.tree-block:hover { background: var(--color-kinari); }
+.tree-block[aria-current="true"] { border-left-color: var(--color-chitose); background: var(--color-neri); }
+.tree-id { font-family: var(--font-code); font-weight: 700; }
+.tree-type .t { display: inline; margin-right: 0.35em; color: var(--color-kurotsurubami); }
+.tree-excerpt { grid-column: 1 / -1; overflow: hidden; color: var(--color-kurotsurubami); white-space: nowrap; text-overflow: ellipsis; }
+/* 隱藏的區塊顯示成淡色，已修改的區塊在編號後加上朱色的點 */
+.tree-block.is-hidden { opacity: 0.5; text-decoration: line-through; }
+.tree-block.is-dirty .tree-id::after { content: "●"; margin-left: 0.25em; color: var(--color-shu); font-size: 0.75em; }
+
+/* 編輯區 */
+.editor-main {
+  min-width: 0;
+  padding: 1.5rem 1.75rem 2rem;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: #fff;
+}
+.editor-empty { color: var(--color-kurotsurubami); }
+.editor-head { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1.25rem; }
+.editor-title { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: baseline; margin: 0; color: var(--color-tetsukon); font-size: 1.25rem; }
+.editor-id { font-family: var(--font-code); }
+.editor-type { font-size: 0.9375rem; font-weight: 400; }
+.editor-type .t { display: inline; margin-right: 0.5em; }
+.badge { padding: 0.125rem 0.625rem; border-radius: 999px; background: var(--color-neri); font-size: 0.8125rem; }
+.badge .t { display: inline; margin-right: 0.35em; }
+
+.block-form .field + .field { margin-top: 1.25rem; }
+.field-label { display: block; margin-bottom: 0.375rem; font-weight: 700; }
+.field-label .t { display: inline; margin-right: 0.5em; }
+.field-label-small { margin: 0.5rem 0 0.25rem; color: var(--color-kurotsurubami); font-size: 0.8125rem; font-weight: 400; }
+
+/* 中日兩欄並排 */
+.bi-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.bi-column { display: block; }
+.bi-head { display: block; color: var(--color-kurotsurubami); font-size: 0.75rem; }
+.bi-input,
+.text-input,
+.choice-input {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: var(--color-kinari);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+.bi-input { resize: vertical; }
+.bi-input:lang(zh-Hant-TW) { font-family: var(--font-body-zh); }
+.bi-input:lang(ja) { font-family: var(--font-body-ja); }
+.text-input { font-family: var(--font-code); }
+.choice-input { width: auto; min-width: 12rem; }
+
+.item-list { margin: 0; padding: 0; list-style: none; counter-reset: item; }
+.item-row {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: start;
+  counter-increment: item;
+}
+.item-row::before { content: counter(item); padding-top: 1.5rem; color: var(--color-chitose); font-weight: 700; text-align: right; }
+.item-row + .item-row { margin-top: 0.75rem; }
+.item-row-stack { padding-top: 0.5rem; border-top: 1px dashed var(--color-rikyu); }
+.item-row-stack::before { padding-top: 0.5rem; }
+.item-fields .field + .field { margin-top: 0.5rem; }
+.item-controls { display: flex; gap: 0.25rem; padding-top: 1.25rem; }
+.icon-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.icon-button:hover:not(:disabled) { background: var(--color-neri); }
+.icon-button:disabled { opacity: 0.35; cursor: default; }
+.add-button { margin-top: 0.75rem; font-size: 0.875rem; }
+
+.editor-check,
+.editor-preview { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--color-rikyu); }
+.editor-section-title { margin: 0 0 0.75rem; color: var(--color-tetsukon); font-size: 1rem; }
+.editor-section-title .t { display: inline; margin-right: 0.5em; }
+.check-ok { color: var(--color-chitose); }
+html[data-lang-mode="both"] .check-ok .t-ja { color: inherit; }
+.check-issues { margin: 0; padding: 0; list-style: none; font-size: 0.9375rem; }
+.check-issues li { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; }
+.check-issues li + li { margin-top: 0.375rem; }
+.check-issues .is-error { color: var(--color-kokihi); }
+.check-issues .is-notice { color: var(--color-kurotsurubami); }
+.check-issues .t { display: inline; margin-right: 0.35em; }
+html[data-lang-mode="both"] .check-issues .t-ja { color: inherit; }
+.check-level { font-weight: 700; }
+
+/* 預覽框模擬前台的紙張 */
+.preview-body { padding: 1rem 1.5rem 1.5rem; border: 1px solid var(--color-rikyu); background: var(--color-kinari); }
+.preview-body > .block:first-child,
+.preview-body > .section-title:first-child { margin-top: 0; }
+.preview-note { margin-bottom: 0.75rem; color: var(--color-kurotsurubami); font-size: 0.875rem; }
+
+@media (max-width: 1023.98px) {
+  .admin-workspace { grid-template-columns: minmax(0, 1fr); }
+  .editor-nav { position: static; max-height: 40vh; }
+}
+@media (max-width: 767.98px) {
+  .admin-main { padding: 1rem 0.75rem 3rem; }
+  .editor-main { padding: 1rem; }
+  .bi-pair { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 767.98px) {
   .admin-login { padding-top: 2.5rem; }
