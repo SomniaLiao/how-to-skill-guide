@@ -6,7 +6,8 @@
   --color-kinari: #FBFAF5;        /* 生成り色　整個右側內容區的背景 */
   --color-neri: #EDE4CD;          /* 練色　註記框與左側欄背景 */
   --color-binroji: #433D3C;       /* 檳榔子染　正文 */
-  --color-kurotsurubami: #544A47; /* 黒橡　次要文字、日語行 */
+  --color-kurotsurubami: #544A47; /* 黒橡　次要文字 */
+  --color-edomurasaki: #745399;   /* 江戸紫　雙語模式的日語行 */
   --color-tetsukon: #17184B;      /* 鉄紺　標題、程式碼背景 */
   --color-ai: #165E83;            /* 藍色　連結、聚焦外框 */
   --color-kokihi: #C9171E;        /* 深緋　提醒 */
@@ -92,7 +93,8 @@ a { color: var(--color-ai); text-underline-offset: 0.2em; }
 .t { display: block; }
 html[data-lang-mode="zh"] .t-ja { display: none; }
 html[data-lang-mode="ja"] .t-zh { display: none; }
-html[data-lang-mode="both"] .t-ja { color: var(--color-kurotsurubami); margin-top: 0.25em; }
+/* 雙語時日語換成江戸紫，一眼分得出兩種語言。單語時兩種語言都用正文的顏色 */
+html[data-lang-mode="both"] .t-ja { color: var(--color-edomurasaki); margin-top: 0.25em; }
 /* 中日相同的文字只顯示一次。選擇器較長，才蓋得過標籤的 display: inline */
 html[data-lang-mode="both"] .t.t-ja.t-same { display: none; }
 

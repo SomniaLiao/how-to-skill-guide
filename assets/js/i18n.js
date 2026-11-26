@@ -86,6 +86,40 @@ function applyMode(value) {
   document.dispatchEvent(new CustomEvent('htsg:langchange'));
 }
 
+// ---------- 切換時保持閱讀位置 ----------
+
+// 畫面最上方正在讀的區塊。只找區塊、小節標題與章標題，
+// 包住整頁的外框（#article）也有 id，但它的頂端不會隨內容移動，不能拿來對位。
+// 隱藏中的元素沒有方框，跳過
+const ANCHOR_SELECTOR = 'main .block[id], main .section-title[id], main .chapter-title[id]';
+
+function findReadingAnchor() {
+  for (const node of document.querySelectorAll(ANCHOR_SELECTOR)) {
+    if (node.getClientRects().length === 0) continue;
+    if (node.getBoundingClientRect().bottom > 0) return node;
+  }
+  return null;
+}
+
+// 切換語言後文字變多或變少，頁面高度改變，捲動位置卻不變，閱讀位置就會跑掉。
+// 所以先記住區塊在畫面上的位置，切換後捲回同樣的位置
+function keepReadingPosition(change) {
+  const anchor = findReadingAnchor();
+  const before = anchor ? anchor.getBoundingClientRect() : null;
+  change();
+  if (!anchor) return;
+  // 讀取位置時瀏覽器會先重新排版，所以這裡拿到的是切換後的位置
+  const after = anchor.getBoundingClientRect();
+  let target = before.top;
+  if (before.top < 0 && before.height > 0) {
+    // 區塊上半部已捲出畫面時，改為保持「讀到區塊的幾成」。
+    // 只保持頂端的話，區塊變長或變短，畫面上看到的部分還是會跑掉
+    target = (before.top / before.height) * after.height;
+  }
+  // instant：不要平滑捲動，否則看起來像畫面在跳
+  window.scrollTo({ top: window.scrollY + (after.top - target), behavior: 'instant' });
+}
+
 // 在內容顯示之前呼叫，避免先閃過預設的語言
 export function initLangMode() {
   applyMode(readMode());
@@ -118,7 +152,7 @@ export function createLangSwitch(legendText) {
     radio.lang = mode.lang;
     radio.checked = mode.value === root.dataset.langMode;
     radio.addEventListener('change', () => {
-      applyMode(mode.value);
+      keepReadingPosition(() => applyMode(mode.value));
       saveMode(mode.value);
     });
 
