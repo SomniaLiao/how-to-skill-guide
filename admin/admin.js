@@ -1,8 +1,8 @@
 // 後台的進入點：介面文字、語言切換、權杖登入與登出（規格書 11.1、D-38）。
 
-import { appendBilingual, createLangSwitch, initLangMode, setPageTitle } from '../assets/js/i18n.js';
-import { loadDocs, mountEditor, unmountEditor } from './editor.js';
-import { ApiError, createClient, formatJson, isValidRepo, today } from './github-api.js';
+import { appendBilingual, attributeText, createLangSwitch, initLangMode, setPageTitle } from '../assets/js/i18n.js';
+import { hasUnsaved, loadDocs, mountEditor, unmountEditor } from './editor.js';
+import { ApiError, createClient, isValidRepo } from './github-api.js';
 
 const TOKEN_KEY = 'htsg.admin.token';
 const REPO_KEY = 'htsg.admin.repo';
@@ -210,66 +210,17 @@ async function login(event) {
 }
 
 function logout() {
+  // 有未儲存的修改時先確認，避免誤按而失去修改
+  if (hasUnsaved() && !window.confirm(attributeText(text('AD-128')))) return;
   clearToken();
   unmountEditor($('editor'));
-  $('test-log').replaceChildren();
   showLogin(['AD-22']);
 }
 
-// ---------- 連線測試（P2-2，P2-3 加入編輯器後移除） ----------
-
-const TEST_FILE = 'content/ui.json';
-
-function log(id, values, isError = false) {
-  const line = document.createElement('p');
-  if (isError) line.className = 'admin-log-error';
-  appendBilingual(line, text(id, values));
-  $('test-log').append(line);
-}
-
-// 測試期間停用按鈕，避免重複送出
-async function runTest(test) {
-  const buttons = [$('read-test'), $('write-test')];
-  buttons.forEach((button) => { button.disabled = true; });
-  $('test-log').replaceChildren();
-  log('AD-40');
-  try {
-    await test();
-  } catch (error) {
-    const [id, values] = describe(error);
-    log(id, values, true);
-  } finally {
-    buttons.forEach((button) => { button.disabled = false; });
-  }
-}
-
-// 讀取 ui.json，確認中日文解碼正確，並顯示提交時使用的 noreply 地址
-async function readTest() {
-  const { data, sha } = await client.readJson(TEST_FILE);
-  log('AD-41', { name: data.strings['UI-01'], sha: sha.slice(0, 7) });
-  const { email } = await client.getIdentity();
-  log('AD-42', { email });
-}
-
-// 把更新日期改為今天後寫回，再用一個不存在的舊版本寫入，確認會被拒絕
-async function writeTest() {
-  const { data, sha } = await client.readJson(TEST_FILE);
-  data.updated = today();
-  const content = { text: formatJson(data) };
-  const result = await client.writeFile(TEST_FILE, content, {
-    sha,
-    message: 'content: 更新 ui.json 的更新日期（後台連線測試）',
-  });
-  log('AD-43', { commit: result.commit.slice(0, 7) });
-
-  try {
-    await client.writeFile(TEST_FILE, content, { sha: '0'.repeat(40), message: 'content: 衝突測試' });
-    log('AD-45', {}, true);
-  } catch (error) {
-    if (error.kind === 'conflict') log('AD-44');
-    else throw error;
-  }
-}
+// 關閉分頁或重新整理時，有未儲存的修改就請瀏覽器跳出確認
+window.addEventListener('beforeunload', (event) => {
+  if (hasUnsaved()) event.preventDefault();
+});
 
 // ---------- 開始 ----------
 
@@ -289,8 +240,6 @@ async function start() {
 
   $('login-form').addEventListener('submit', login);
   $('logout-button').addEventListener('click', logout);
-  $('read-test').addEventListener('click', () => runTest(readTest));
-  $('write-test').addEventListener('click', () => runTest(writeTest));
 
   // 有保存的權杖就先確認它還能用
   const token = loadToken();

@@ -1,10 +1,11 @@
 // 編輯器：左側清單、以編號搜尋、區塊表單、即時檢查與預覽（規格書 11.3、D-37）。
 // 區塊的新增、刪除、移動、隱藏，以及章標題的修改（P2-3c）。
 
-import { checkBlock, checkFiles, checkUi, ERROR, LEVEL_TEXT } from '../assets/js/check.js';
+import { checkBlock, checkFiles, checkPage, checkUi, ERROR, LEVEL_TEXT } from '../assets/js/check.js';
 import { appendBilingual, attributeText } from '../assets/js/i18n.js';
 import { isHidden, renderBlock } from '../assets/js/render.js';
 import { BLOCK_TYPES, buildBlockForm, excerpt, ID_PATTERN, newBlock } from './fields.js';
+import { formatJson, today } from './github-api.js';
 import { findUnsafe } from './safety.js';
 
 const PAGES = [
@@ -109,6 +110,7 @@ function idExists(id) {
 function markDirty(path, id) {
   if (!state.dirty.has(path)) state.dirty.set(path, new Set());
   state.dirty.get(path).add(id);
+  updateSaveBar();
 }
 
 export const dirtyFiles = () => state.dirty;
@@ -662,6 +664,146 @@ function renderSection({ page, sectionId, notice }) {
   main.append(addForm(page, section, null, 'AD-111'));
 }
 
+// ---------- 儲存（D-37 第 9 項、D-39） ----------
+
+export const hasUnsaved = () => state.dirty.size > 0;
+
+function buildSaveBar() {
+  const bar = element('div', 'save-bar');
+  const count = element('p', 'save-count');
+  const saveButton = button('admin-button', label('AD-121'), save);
+  const message = element('div', 'save-message');
+  message.setAttribute('role', 'status');
+  bar.append(count, saveButton, message);
+  return bar;
+}
+
+function updateSaveBar() {
+  if (!state.nodes) return;
+  const bar = state.nodes.saveBar;
+  const count = bar.querySelector('.save-count');
+  count.replaceChildren();
+  if (state.dirty.size > 0) appendBilingual(count, fill(lookup('AD-120'), { count: String(state.dirty.size) }));
+  else appendBilingual(count, lookup('AD-130'));
+  bar.classList.toggle('has-changes', state.dirty.size > 0);
+  bar.querySelector('.admin-button').disabled = state.dirty.size === 0 || state.saving;
+}
+
+function saveMessage(...parts) {
+  const message = state.nodes.saveBar.querySelector('.save-message');
+  message.replaceChildren(...parts);
+  return message;
+}
+
+// 提交訊息依規格書 11.2 的格式，列出這次修改的編號
+function commitMessage(path) {
+  if (path.startsWith(TEMPLATE_DIR)) return `template: 更新 ${path.slice(TEMPLATE_DIR.length)}`;
+  return `content: 更新 ${[...state.dirty.get(path)].join('、')}`;
+}
+
+// 某個檔案要寫入的文字。JSON 先把 updated 改成今天（D-37 第 7 項）
+function contentOf(path) {
+  const doc = state.docs.get(path);
+  if (doc.text !== undefined) return doc.text;
+  doc.data.updated = today();
+  return formatJson(doc.data);
+}
+
+// 儲存前檢查整個檔案。回傳錯誤（只有提醒時可以儲存）
+function checkBeforeSave(path) {
+  const doc = state.docs.get(path);
+  if (path === UI_PATH) return checkUi(doc.data, path).filter((issue) => issue.level === ERROR);
+  const page = PAGES.find((item) => item.path === path);
+  if (page) return checkPage(doc.data, path).filter((issue) => issue.level === ERROR);
+  return []; // 範本不做文字規則檢查
+}
+
+async function save() {
+  if (state.saving || state.dirty.size === 0) return;
+  const paths = [...state.dirty.keys()];
+
+  // 一、先檢查所有檔案。只要有一個錯誤就全部不儲存，避免只存了一半
+  const errors = paths.flatMap(checkBeforeSave);
+  const unsafe = paths.map((path) => [path, findUnsafe(contentOfPreview(path))]).find(([, kind]) => kind);
+  if (errors.length > 0) {
+    const list = element('div');
+    showIssues(list, errors.map((issue) => ({ ...issue, field: `${issue.id} ${issue.field}` })));
+    saveMessage(label('AD-124', 'editor-error', 'p'), list);
+    return;
+  }
+  if (unsafe) {
+    const id = { email: 'AD-33', token: 'AD-34', key: 'AD-35' }[unsafe[1]];
+    saveMessage(appendBilingual(element('p', 'editor-error'), fill(lookup('AD-129'), { path: unsafe[0] })), label(id, 'editor-error', 'p'));
+    return;
+  }
+
+  // 二、逐一寫入。每個檔案一筆提交（D-39 第 2 項）
+  state.saving = true;
+  updateSaveBar();
+  saveMessage(label('AD-122', 'editor-hint', 'p'));
+  let saved = 0;
+  for (const path of paths) {
+    try {
+      const doc = state.docs.get(path);
+      const result = await state.client.writeFile(path, { text: contentOf(path) }, { sha: doc.sha, message: commitMessage(path) });
+      doc.sha = result.sha; // 下次儲存要用新的版本
+      state.dirty.delete(path);
+      saved += 1;
+    } catch (error) {
+      state.saving = false;
+      showSaveError(path, error);
+      refreshTree();
+      updateSaveBar();
+      return;
+    }
+  }
+  state.saving = false;
+  refreshTree();
+  updateSaveBar();
+  const notes = [appendBilingual(element('p', 'check-ok'), fill(lookup('AD-123'), { count: String(saved) }))];
+  if (paths.some((path) => ZIP_SKILLS.some((prefix) => path.startsWith(prefix)))) notes.push(label('AD-118', 'editor-notice', 'p'));
+  saveMessage(...notes);
+}
+
+// 檢查安全用的文字，不改動 updated
+function contentOfPreview(path) {
+  const doc = state.docs.get(path);
+  return doc.text ?? formatJson(doc.data);
+}
+
+// 儲存失敗。衝突時列出這個檔案中未儲存的項目，並提供重新載入（D-39 第 3 項）
+function showSaveError(path, error) {
+  const parts = [
+    appendBilingual(element('p', 'editor-error'), fill(lookup('AD-129'), { path })),
+    appendBilingual(element('p', 'editor-error'), state.describe(error)),
+  ];
+  if (error.kind === 'conflict') {
+    const ids = [...(state.dirty.get(path) ?? [])].join('、');
+    parts.push(appendBilingual(element('p', 'save-ids'), fill(lookup('AD-125'), { ids })));
+    parts.push(button('admin-button admin-button-quiet', label('AD-126'), () => reloadFile(path)));
+  }
+  saveMessage(...parts);
+}
+
+// 重新讀取一個檔案，放棄其中未儲存的修改
+async function reloadFile(path) {
+  if (!window.confirm(attr('AD-127'))) return;
+  try {
+    const fresh = path.startsWith(TEMPLATE_DIR) ? await state.client.readText(path) : await state.client.readJson(path);
+    state.docs.set(path, fresh);
+  } catch (error) {
+    saveMessage(appendBilingual(element('p', 'editor-error'), state.describe(error)));
+    return;
+  }
+  state.dirty.delete(path);
+  // 正在編輯的區塊可能已不存在，回到未選擇的狀態
+  state.selected = null;
+  refreshTree();
+  renderEditor();
+  updateSaveBar();
+  saveMessage();
+}
+
 // ---------- 進入點 ----------
 
 // container 是放編輯器的元素。text(id) 回傳後台文字，errorText(error) 回傳錯誤的雙語說明
@@ -670,12 +812,16 @@ export function mountEditor(container, { text, errorText }) {
   state.describe = errorText;
   const nav = element('nav', 'editor-nav');
   const tree = buildTree();
-  nav.append(buildSearch(), tree);
+  // 儲存列放在左欄最上方，左欄固定不捲動，隨時看得到
+  const saveBar = buildSaveBar();
+  nav.append(saveBar, buildSearch(), tree);
   const main = element('div', 'editor-main');
-  state.nodes = { nav, tree, main };
+  state.nodes = { nav, tree, main, saveBar };
   state.selected = null;
+  state.saving = false;
   container.replaceChildren(nav, main);
   renderEditor();
+  updateSaveBar();
 }
 
 // 切換語言時，屬性中的文字（按鈕說明、選項）要重新產生

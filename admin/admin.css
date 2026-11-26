@@ -146,11 +146,6 @@ html[data-lang-mode="both"] .admin-message .t-ja { color: inherit; }
 .admin-header-title { color: var(--color-tetsukon); font-size: 1.125rem; }
 .admin-repo { margin-right: auto; color: var(--color-kurotsurubami); font-family: var(--font-code); font-size: 0.875rem; }
 
-.admin-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
-.admin-log { margin-top: 1rem; font-size: 0.9375rem; }
-.admin-log p + p { margin-top: 0.5rem; }
-.admin-log-error { color: var(--color-kokihi); }
-html[data-lang-mode="both"] .admin-log-error .t-ja { color: inherit; }
 
 .admin-main { max-width: 96rem; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
 
@@ -355,6 +350,24 @@ html[data-lang-mode="both"] .add-message .t-ja { color: inherit; }
 .editor-error { color: var(--color-kokihi); }
 html[data-lang-mode="both"] .editor-error .t-ja { color: inherit; }
 .tree-group { margin-top: 1rem; }
+
+/* 儲存列：在左欄捲動時仍固定在上方 */
+.save-bar {
+  position: sticky;
+  top: -1rem;
+  z-index: 1;
+  margin: -1rem -1rem 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-rikyu);
+  background: #fff;
+}
+.save-bar.has-changes { background: var(--color-neri); }
+.save-count { font-size: 0.875rem; }
+.save-count .t { display: inline; margin-right: 0.35em; }
+.save-bar > .admin-button { margin-top: 0.5rem; }
+.save-message { max-height: 40vh; overflow-y: auto; font-size: 0.875rem; }
+.save-message > * { margin-top: 0.5rem; }
+.save-message .admin-button { margin-top: 0.5rem; }
 
 /* 預覽框模擬前台的紙張 */
 .preview-body { padding: 1rem 1.5rem 1.5rem; border: 1px solid var(--color-rikyu); background: var(--color-kinari); }
