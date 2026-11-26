@@ -153,19 +153,23 @@ export function createClient({ token, repo, onUnauthorized }) {
 
   // 列出某個資料夾下的所有檔案（含子資料夾）。一次取得整個 repo 的檔案樹，再篩選。
   // 以「.」開頭的檔案或資料夾不列出
-  async function listFiles(prefix) {
+  // 回傳 [{ path, sha }]。sha 在覆蓋圖片時要附上，不必另外讀取檔案
+  async function listEntries(prefix) {
     const data = await request(`${repoPath}/git/trees/HEAD?recursive=1`);
     return data.tree
       .filter((item) => item.type === 'blob' && item.path.startsWith(prefix))
-      .map((item) => item.path)
-      .filter((path) => !path.split('/').some((part) => part.startsWith('.')))
-      .sort();
+      .filter((item) => !item.path.split('/').some((part) => part.startsWith('.')))
+      .map((item) => ({ path: item.path, sha: item.sha }))
+      .sort((a, b) => a.path.localeCompare(b.path));
   }
+
+  const listFiles = async (prefix) => (await listEntries(prefix)).map((item) => item.path);
 
   return {
     // 確認權杖有效，而且讀得到這個 repo
     verify: () => request(repoPath),
     listFiles,
+    listEntries,
     readFile,
     readText,
     readJson,

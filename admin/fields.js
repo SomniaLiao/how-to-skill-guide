@@ -26,8 +26,8 @@ export const BLOCK_TYPES = {
   figure: {
     name: 'AD-87',
     fields: [
-      text('src', 'AD-68'),
-      text('src_ja', 'AD-69', { optional: true }),
+      { kind: 'shot', key: 'src', label: 'AD-68' },
+      { kind: 'shot', key: 'src_ja', label: 'AD-69', optional: true },
       bi('alt', 'AD-70', { rows: 2 }),
       { kind: 'choice', key: 'device', label: 'AD-71', options: [['desktop', 'UI-20'], ['mobile', 'UI-21']] },
       text('date', 'UI-24', { placeholder: 'YYYY-MM' }),
@@ -195,6 +195,41 @@ const builders = {
     select.value = values.includes(target[field.key]) ? target[field.key] : '';
     select.addEventListener('change', () => {
       if (select.value) target[field.key] = select.value;
+      ctx.onChange();
+    });
+    box.append(select);
+    return box;
+  },
+
+  // 截圖：從現有的截圖中選擇（D-40 第 3 項）。可省略的欄位多一個「不使用」
+  shot(field, target, ctx) {
+    const box = fieldBox(ctx, field.label);
+    const select = element('select', 'choice-input');
+    select.setAttribute('aria-label', ctx.attr(field.label));
+    const paths = ctx.shots();
+    const current = target[field.key] ?? '';
+    if (field.optional) {
+      const none = element('option');
+      none.value = '';
+      none.textContent = ctx.attr('AD-134');
+      select.append(none);
+    }
+    if (current && !paths.includes(current)) {
+      const option = element('option');
+      option.value = current;
+      option.textContent = `${current} ${ctx.attr('AD-95')}`;
+      select.append(option);
+    }
+    for (const path of paths) {
+      const option = element('option');
+      option.value = path;
+      option.textContent = path.split('/').pop();
+      select.append(option);
+    }
+    select.value = current;
+    select.addEventListener('change', () => {
+      if (select.value) target[field.key] = select.value;
+      else delete target[field.key];
       ctx.onChange();
     });
     box.append(select);

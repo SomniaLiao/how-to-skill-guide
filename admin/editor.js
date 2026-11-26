@@ -7,6 +7,7 @@ import { isHidden, renderBlock } from '../assets/js/render.js';
 import { BLOCK_TYPES, buildBlockForm, excerpt, ID_PATTERN, newBlock } from './fields.js';
 import { formatJson, today } from './github-api.js';
 import { findUnsafe } from './safety.js';
+import { editImage, groupShots, nextShotId, SHOT_DIR, shotName, shotPath, validateFile } from './shots.js';
 
 const PAGES = [
   { key: 'student', path: 'content/student.json', name: 'AD-49' },
@@ -24,6 +25,8 @@ const REFRESH_MS = 200; // 輸入停下來後多久更新檢查與預覽
 // selected 的種類：block、section、ui、template
 const state = {
   docs: new Map(), dirty: new Map(), templates: [], client: null, selected: null, text: null, nodes: null,
+  // shotFiles：截圖路徑 → GitHub 上的 sha（新增的為 null）。assets：尚未儲存的圖片，路徑 → { bytes, url }
+  shotFiles: new Map(), assets: new Map(),
 };
 
 function element(tag, className) {
@@ -67,12 +70,15 @@ export async function loadDocs(client) {
   state.dirty.clear();
   state.client = client;
   const paths = [UI_PATH, ...PAGES.map((page) => page.path)];
-  const [templates, ...results] = await Promise.all([
+  const [templates, shots, ...results] = await Promise.all([
     client.listFiles(TEMPLATE_DIR),
+    client.listEntries(SHOT_DIR),
     ...paths.map((path) => client.readJson(path)),
   ]);
   paths.forEach((path, index) => state.docs.set(path, results[index]));
   state.templates = templates;
+  clearAssets();
+  state.shotFiles = new Map(shots.map((item) => [item.path, item.sha]));
 }
 
 // 某一頁的所有章，第 0 項是開始之前（intro）。chapter 是資料中的章物件，修改標題時用
@@ -129,6 +135,8 @@ function keyOf(selection) {
     case 'block': return `block:${selection.page.key}:${selection.block.id}`;
     case 'section': return `section:${selection.page.key}:${selection.sectionId}`;
     case 'ui': return `ui:${selection.id}`;
+    case 'shot': return `shot:${selection.id}`;
+    case 'shot-new': return 'shot-new';
     default: return `template:${selection.path}`;
   }
 }
@@ -183,7 +191,7 @@ function buildTree() {
     }
     tree.append(pageBox);
   }
-  tree.append(uiGroup(), templateGroup());
+  tree.append(uiGroup(), templateGroup(), shotGroup());
   return tree;
 }
 
@@ -315,6 +323,8 @@ function renderEditor() {
   else if (current.kind === 'section') renderSection(current);
   else if (current.kind === 'ui') renderUiEditor(current);
   else if (current.kind === 'template') renderTemplateEditor(current);
+  else if (current.kind === 'shot') renderShot(current);
+  else if (current.kind === 'shot-new') renderNewShot();
   else renderBlockEditor(current);
 }
 
@@ -343,6 +353,7 @@ function renderBlockEditor({ page, block }) {
   const ctx = {
     label,
     attr,
+    shots: () => [...state.shotFiles.keys()].sort(),
     onChange: () => {
       markDirty(page.path, block.id);
       updateSelectedButton();
@@ -555,6 +566,11 @@ function showPreview(preview, page, block) {
   const node = renderBlock(structuredClone(block), context);
   if (node) {
     node.removeAttribute('id'); // 預覽不需要錨點，也避免與頁面上的 id 重複
+    // 尚未儲存的截圖，改用記憶體中的圖片預覽
+    for (const image of node.querySelectorAll('img')) {
+      const pending = state.assets.get(image.getAttribute('src'));
+      if (pending) image.src = pending.url;
+    }
     preview.append(node);
   }
 }
@@ -664,6 +680,167 @@ function renderSection({ page, sectionId, notice }) {
   main.append(addForm(page, section, null, 'AD-111'));
 }
 
+// ---------- 截圖（規格書 11.4、D-37、D-40） ----------
+
+function clearAssets() {
+  for (const asset of state.assets.values()) URL.revokeObjectURL(asset.url);
+  state.assets.clear();
+}
+
+const shotGroups = () => groupShots([...state.shotFiles.keys()]);
+
+// 使用某個截圖檔的區塊
+function blocksUsing(path) {
+  const found = [];
+  for (const page of PAGES) {
+    for (const section of sectionsOf(page)) {
+      for (const block of section.blocks) {
+        if (block.type === 'figure' && (block.src === path || block.src_ja === path)) found.push({ page, block });
+      }
+    }
+  }
+  return found;
+}
+
+function shotGroup() {
+  const group = element('details', 'tree-page tree-group');
+  group.dataset.group = 'shots';
+  const summary = element('summary', 'tree-page-title');
+  summary.append(label('AD-87'));
+  const list = element('div', 'tree-blocks');
+  const add = button('tree-settings', label('AD-138'), () => select({ kind: 'shot-new' }));
+  add.dataset.key = keyOf({ kind: 'shot-new' });
+  list.append(add);
+  for (const shot of shotGroups()) {
+    const node = treeItem({ kind: 'shot', id: shot.id }, shot.id, shot.jaPath ? attr('AD-133') : '');
+    const pending = [shot.path, shot.jaPath].some((path) => path && state.assets.has(path));
+    node.classList.toggle('is-dirty', pending);
+    list.append(node);
+  }
+  group.append(summary, list);
+  return group;
+}
+
+// 圖片的顯示：尚未儲存的用記憶體中的圖片，其他用網站上的檔案
+function shotFigure(path, captionId) {
+  const figure = element('figure', 'shot-preview');
+  const image = element('img');
+  image.alt = '';
+  image.src = state.assets.get(path)?.url ?? path;
+  const caption = element('figcaption');
+  const name = element('code');
+  name.textContent = shotName(path);
+  caption.append(name);
+  if (captionId) caption.append(label(captionId));
+  if (state.assets.has(path)) caption.append(label('AD-135', 'badge'));
+  figure.append(image, caption);
+  return figure;
+}
+
+function renderShot({ id }) {
+  const { main } = state.nodes;
+  const shot = shotGroups().find((item) => item.id === id);
+  main.append(editorHead(id, 'AD-87'));
+  if (!shot) return;
+
+  // 使用這張截圖的區塊，點選可以跳過去
+  // 同一個區塊可能同時使用中文版與日語版，只列一次
+  const users = [...new Map([shot.path, shot.jaPath].filter(Boolean).flatMap(blocksUsing)
+    .map((item) => [item.block, item])).values()];
+  const usage = element('div', 'shot-usage');
+  if (users.length === 0) {
+    usage.append(label('AD-132', 'editor-hint', 'p'));
+  } else {
+    usage.append(appendBilingual(element('p', 'editor-hint'), fill(lookup('AD-131'), { ids: users.map((item) => item.block.id).join('、') })));
+    const date = element('p', 'editor-hint');
+    date.append(label('UI-24'));
+    date.append(` ${users[0].block.date ?? ''}`);
+    usage.append(date);
+    const jumps = element('div', 'shot-jumps');
+    for (const { page, block } of users) {
+      jumps.append(button('admin-button admin-button-quiet', block.id, () => select({ kind: 'block', page, block })));
+    }
+    usage.append(jumps);
+  }
+  main.append(usage);
+
+  const message = element('div', 'save-message');
+  message.setAttribute('role', 'status');
+  const variants = element('div', 'shot-variants');
+  if (shot.path) variants.append(shotVariant(shot.path, null, 'AD-136', message));
+  variants.append(shot.jaPath
+    ? shotVariant(shot.jaPath, 'AD-133', 'AD-136', message)
+    : shotUpload(shotPath(id, true), 'AD-137', message));
+  main.append(variants, message);
+}
+
+function shotVariant(path, captionId, buttonId, message) {
+  const box = element('div', 'shot-variant');
+  box.append(shotFigure(path, captionId), shotUpload(path, buttonId, message));
+  return box;
+}
+
+// 選擇圖片檔的按鈕。選好後開啟加框編輯器，確定後加入未儲存的修改
+function shotUpload(path, buttonId, message, onQueued) {
+  const wrap = element('div', 'shot-upload');
+  const input = element('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/webp';
+  input.hidden = true;
+  const trigger = button('admin-button admin-button-quiet', label(buttonId), () => input.click());
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = ''; // 同一個檔案再選一次也會觸發
+    if (!file) return;
+    message.replaceChildren();
+    const invalid = validateFile(file);
+    if (invalid) {
+      message.append(label(invalid, 'editor-error', 'p'));
+      return;
+    }
+    let bytes;
+    try {
+      bytes = await editImage(file, { label, attr });
+    } catch (error) {
+      message.append(label(error.message, 'editor-error', 'p'));
+      return;
+    }
+    if (!bytes) return; // 取消
+    queueAsset(path, bytes);
+    onQueued?.();
+    refreshTree();
+    rerender();
+    state.nodes.main.querySelector('.save-message')?.append(label('AD-154', 'editor-notice', 'p'));
+  });
+  wrap.append(trigger, input);
+  return wrap;
+}
+
+// 加入未儲存的圖片，並把使用它的區塊的日期改成本月（規格書 11.4 第六項）
+function queueAsset(path, bytes) {
+  const old = state.assets.get(path);
+  if (old) URL.revokeObjectURL(old.url);
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
+  state.assets.set(path, { bytes, url });
+  if (!state.shotFiles.has(path)) state.shotFiles.set(path, null);
+  markDirty(path, shotName(path));
+  for (const { page, block } of blocksUsing(path)) {
+    block.date = thisMonth();
+    markDirty(page.path, block.id);
+  }
+}
+
+function renderNewShot() {
+  const { main } = state.nodes;
+  const id = nextShotId([...state.shotFiles.keys()]);
+  main.append(editorHead(id, 'AD-138'));
+  main.append(appendBilingual(element('p', 'editor-hint'), fill(lookup('AD-155'), { id })));
+  const message = element('div', 'save-message');
+  message.setAttribute('role', 'status');
+  // 加入後跳到新截圖的畫面
+  main.append(shotUpload(shotPath(id), 'AD-139', message, () => { state.selected = { kind: 'shot', id }; }), message);
+}
+
 // ---------- 儲存（D-37 第 9 項、D-39） ----------
 
 export const hasUnsaved = () => state.dirty.size > 0;
@@ -697,6 +874,7 @@ function saveMessage(...parts) {
 
 // 提交訊息依規格書 11.2 的格式，列出這次修改的編號
 function commitMessage(path) {
+  if (state.assets.has(path)) return `asset: ${state.shotFiles.get(path) ? '更新' : '新增'} ${shotName(path)}`;
   if (path.startsWith(TEMPLATE_DIR)) return `template: 更新 ${path.slice(TEMPLATE_DIR.length)}`;
   return `content: 更新 ${[...state.dirty.get(path)].join('、')}`;
 }
@@ -711,6 +889,7 @@ function contentOf(path) {
 
 // 儲存前檢查整個檔案。回傳錯誤（只有提醒時可以儲存）
 function checkBeforeSave(path) {
+  if (state.assets.has(path)) return []; // 圖片在加框時已確認過
   const doc = state.docs.get(path);
   if (path === UI_PATH) return checkUi(doc.data, path).filter((issue) => issue.level === ERROR);
   const page = PAGES.find((item) => item.path === path);
@@ -720,11 +899,12 @@ function checkBeforeSave(path) {
 
 async function save() {
   if (state.saving || state.dirty.size === 0) return;
-  const paths = [...state.dirty.keys()];
+  // 先寫圖片，再寫更新了日期的 JSON（D-40 第 2 項）
+  const paths = [...state.dirty.keys()].sort((a, b) => Number(!state.assets.has(a)) - Number(!state.assets.has(b)));
 
   // 一、先檢查所有檔案。只要有一個錯誤就全部不儲存，避免只存了一半
   const errors = paths.flatMap(checkBeforeSave);
-  const unsafe = paths.map((path) => [path, findUnsafe(contentOfPreview(path))]).find(([, kind]) => kind);
+  const unsafe = paths.filter((path) => !state.assets.has(path)).map((path) => [path, findUnsafe(contentOfPreview(path))]).find(([, kind]) => kind);
   if (errors.length > 0) {
     const list = element('div');
     showIssues(list, errors.map((issue) => ({ ...issue, field: `${issue.id} ${issue.field}` })));
@@ -744,6 +924,17 @@ async function save() {
   let saved = 0;
   for (const path of paths) {
     try {
+      if (state.assets.has(path)) {
+        // 圖片：覆蓋時附上 GitHub 上的 sha，新增時不附
+        const asset = state.assets.get(path);
+        const result = await state.client.writeFile(path, { bytes: asset.bytes }, { sha: state.shotFiles.get(path) ?? undefined, message: commitMessage(path) });
+        state.shotFiles.set(path, result.sha);
+        URL.revokeObjectURL(asset.url);
+        state.assets.delete(path);
+        state.dirty.delete(path);
+        saved += 1;
+        continue;
+      }
       const doc = state.docs.get(path);
       const result = await state.client.writeFile(path, { text: contentOf(path) }, { sha: doc.sha, message: commitMessage(path) });
       doc.sha = result.sha; // 下次儲存要用新的版本
@@ -788,6 +979,19 @@ function showSaveError(path, error) {
 // 重新讀取一個檔案，放棄其中未儲存的修改
 async function reloadFile(path) {
   if (!window.confirm(attr('AD-127'))) return;
+  // 圖片沒有內容可以重新讀取，直接放棄尚未儲存的圖片
+  if (state.assets.has(path)) {
+    URL.revokeObjectURL(state.assets.get(path).url);
+    state.assets.delete(path);
+    if (state.shotFiles.get(path) === null) state.shotFiles.delete(path);
+    state.dirty.delete(path);
+    state.selected = null;
+    refreshTree();
+    renderEditor();
+    updateSaveBar();
+    saveMessage();
+    return;
+  }
   try {
     const fresh = path.startsWith(TEMPLATE_DIR) ? await state.client.readText(path) : await state.client.readJson(path);
     state.docs.set(path, fresh);
@@ -832,6 +1036,7 @@ document.addEventListener('htsg:langchange', () => {
 export function unmountEditor(container) {
   state.docs.clear();
   state.dirty.clear();
+  clearAssets();
   state.selected = null;
   state.nodes = null;
   container.replaceChildren();
