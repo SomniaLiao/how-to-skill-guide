@@ -37,6 +37,13 @@ function renderHeader(strings, subtitle) {
 }
 
 function renderContent(content, context) {
+  // 更新日期放在頁首，讀者一開始就能判斷內容新不新（D-36）
+  const updated = document.createElement('p');
+  updated.className = 'page-updated';
+  appendBilingual(updated, context.strings['UI-12']);
+  updated.append(content.updated);
+  article.append(updated);
+
   const intro = document.createElement('div');
   intro.className = 'page-intro';
   intro.append(renderBlocks(content.intro, context));
@@ -45,12 +52,6 @@ function renderContent(content, context) {
   content.chapters.forEach((chapter, index) => {
     article.append(renderChapter(chapter, index + 1, context));
   });
-
-  const footer = document.createElement('footer');
-  footer.className = 'page-footer';
-  appendBilingual(footer, context.strings['UI-12']);
-  footer.append(content.updated);
-  article.append(footer);
 }
 
 // 目錄直接由內容產生，不另外維護

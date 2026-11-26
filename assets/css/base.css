@@ -143,17 +143,15 @@ html[data-lang-mode="both"] .skip-link .t-ja { color: inherit; }
 }
 .page-title .t-ja { font-size: 0.7em; }
 .page-subtitle { margin-top: 0.75rem; color: var(--color-kurotsurubami); }
-.page-intro { margin-top: 2rem; }
-
-.page-footer {
-  margin-top: 4rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-rikyu);
+.page-updated {
+  margin: 1rem 0 0;
   color: var(--color-kurotsurubami);
   font-size: 0.875rem;
 }
+/* 雙語模式時中日文排在同一行，後面接日期 */
+.page-updated .t { display: inline; margin-right: 0.75em; }
 
-.page-footer .t { display: inline; margin-right: 0.75em; }
+.page-intro { margin-top: 2rem; }
 
 /* ---------- 章與小節 ---------- */
 .chapter { margin-top: 5rem; }
