@@ -1,7 +1,7 @@
 // 進入點：依 body 的 data-page 載入內容。
 
 import { appendBilingual, createLangSwitch, initLangMode, setPageTitle } from './i18n.js';
-import { renderBlocks, renderChapter } from './render.js';
+import { isHidden, renderBlocks, renderChapter } from './render.js';
 import { initSidebar } from './sidebar.js';
 
 // 介面文字本身讀不到時也要能顯示，所以這一句另外寫在程式裡（與 UI-14 相同）
@@ -63,7 +63,7 @@ function toTocChapters(content, strings) {
     number: index + 1,
     title: chapter.title,
     sections: chapter.blocks
-      .filter((block) => block.type === 'subheading')
+      .filter((block) => block.type === 'subheading' && !isHidden(block)) // 隱藏的小節不列入目錄
       .map((block) => ({ id: block.id, title: block.text })),
   }));
   return [top, ...chapters];

@@ -215,9 +215,13 @@ export function renderBlock(block, context) {
   }
 }
 
+// 頁面上不顯示的區塊（D-37 第 3 項）。後台的預覽直接呼叫 renderBlock，仍看得到
+export const isHidden = (block) => block.hidden === true;
+
 export function renderBlocks(blocks, context) {
   const fragment = document.createDocumentFragment();
   for (const block of blocks) {
+    if (isHidden(block)) continue;
     const node = renderBlock(block, context);
     if (node) fragment.append(node);
   }

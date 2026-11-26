@@ -5,6 +5,16 @@ import { safeExternalUrl, safeInternalPath } from './paths.js';
 export const ERROR = '錯誤';
 export const NOTICE = '提醒';
 
+// 等級的雙語名稱，後台顯示用
+export const LEVEL_TEXT = {
+  [ERROR]: { zh: '錯誤', ja: 'エラー' },
+  [NOTICE]: { zh: '提醒', ja: '注意' },
+};
+
+// 檢查訊息一律有中日兩種，check.html 顯示中文，後台依語言顯示（D-38）
+const msg = (zh, ja) => ({ zh, ja });
+const EMPTY_MESSAGE = msg('缺少內容', '内容がありません');
+
 // ---------- 文字規則 ----------
 
 const CJK = '\\u3005-\\u3007\\u3040-\\u30ff\\u3400-\\u4dbf\\u4e00-\\u9fff\\uff00-\\uffef';
@@ -17,10 +27,10 @@ const PENDING = /（待核對）|（要確認）/;
 export function checkText(text) {
   const problems = [];
   const plain = text.replace(/`[^`]+`/g, '`'); // 行內程式碼不受限。留下反引號，避免前後的字被接在一起
-  if (/[;；]/.test(plain)) problems.push({ level: ERROR, message: '含有分號' });
-  if (DASH.test(plain)) problems.push({ level: ERROR, message: '含有破折號或連續的連字號' });
-  if (LONE_HYPHEN.test(plain)) problems.push({ level: ERROR, message: '含有單獨的連字號' });
-  if (PENDING.test(plain)) problems.push({ level: NOTICE, message: '含有「（待核對）」或「（要確認）」' });
+  if (/[;；]/.test(plain)) problems.push({ level: ERROR, message: msg('含有分號', 'セミコロンが含まれています') });
+  if (DASH.test(plain)) problems.push({ level: ERROR, message: msg('含有破折號或連續的連字號', 'ダッシュ、または連続したハイフンが含まれています') });
+  if (LONE_HYPHEN.test(plain)) problems.push({ level: ERROR, message: msg('含有單獨的連字號', '単独のハイフンが含まれています') });
+  if (PENDING.test(plain)) problems.push({ level: NOTICE, message: msg('含有「（待核對）」或「（要確認）」', '「（待核對）」または「（要確認）」が含まれています') });
   return problems;
 }
 
@@ -28,7 +38,7 @@ function checkBilingual(text, field, add) {
   for (const key of ['zh', 'ja']) {
     const value = text?.[key];
     if (typeof value !== 'string' || value.trim() === '') {
-      add(`${field}.${key}`, ERROR, '缺少翻譯');
+      add(`${field}.${key}`, ERROR, msg('缺少翻譯', '翻訳がありません'));
       continue;
     }
     for (const problem of checkText(value)) add(`${field}.${key}`, problem.level, problem.message);
@@ -37,7 +47,7 @@ function checkBilingual(text, field, add) {
 
 function checkList(items, field, add, checkItem) {
   if (!Array.isArray(items) || items.length === 0) {
-    add(field, ERROR, '缺少內容');
+    add(field, ERROR, EMPTY_MESSAGE);
     return;
   }
   items.forEach((item, index) => checkItem(item, `${field}[${index + 1}]`));
@@ -45,7 +55,7 @@ function checkList(items, field, add, checkItem) {
 
 // ---------- 各類型的區塊 ----------
 
-const PATH_MESSAGE = '內部路徑不符合規則';
+const PATH_MESSAGE = msg('內部路徑不符合規則', '内部パスが規則に合っていません');
 
 function checkPath(kind, path, field, add, files) {
   if (!safeInternalPath(kind, path)) add(field, ERROR, PATH_MESSAGE);
@@ -61,7 +71,7 @@ const blockCheckers = {
     checkList(block.items, 'items', add, (item, field) => checkBilingual(item, field, add));
   },
   note: (block, { add }) => {
-    if (!['tip', 'warning'].includes(block.variant)) add('variant', ERROR, '只能是 tip 或 warning');
+    if (!['tip', 'warning'].includes(block.variant)) add('variant', ERROR, msg('只能是 tip 或 warning', 'tip か warning のどちらかにしてください'));
     checkBilingual(block.text, 'text', add);
   },
   flow: (block, { add }) => checkList(block.items, 'items', add, (item, field) => checkBilingual(item, field, add)),
@@ -69,15 +79,15 @@ const blockCheckers = {
     checkList(block.columns, 'columns', add, (item, field) => checkBilingual(item, field, add));
     checkList(block.rows, 'rows', add, (row, rowField) => {
       checkList(row, rowField, add, (cell, field) => checkBilingual(cell, field, add));
-      if (row?.length !== block.columns?.length) add(rowField, ERROR, '格數與欄位數不同');
+      if (row?.length !== block.columns?.length) add(rowField, ERROR, msg('格數與欄位數不同', 'セルの数が列の数と一致しません'));
     });
   },
   figure: (block, { add, files }) => {
     checkPath('figure', block.src, 'src', add, files);
     if (block.src_ja !== undefined) checkPath('figure', block.src_ja, 'src_ja', add, files);
     checkBilingual(block.alt, 'alt', add);
-    if (!['mobile', 'desktop'].includes(block.device)) add('device', ERROR, '缺少 device，或不是 mobile、desktop');
-    if (!/^\d{4}-\d{2}$/.test(block.date ?? '')) add('date', NOTICE, '缺少截圖日期，或格式不是 YYYY-MM');
+    if (!['mobile', 'desktop'].includes(block.device)) add('device', ERROR, msg('缺少 device，或不是 mobile、desktop', 'device がないか、mobile、desktop 以外になっています'));
+    if (!/^\d{4}-\d{2}$/.test(block.date ?? '')) add('date', NOTICE, msg('缺少截圖日期，或格式不是 YYYY-MM', '撮影日がないか、YYYY-MM の形式になっていません'));
   },
   code: (block, { add, files }) => {
     checkPath('code', block.file, 'file', add, files);
@@ -88,7 +98,7 @@ const blockCheckers = {
     checkBilingual(item?.label, `${field}.label`, add);
   }),
   sources: (block, { add }) => checkList(block.items, 'items', add, (item, field) => {
-    if (!safeExternalUrl(item?.url)) add(`${field}.url`, ERROR, '網址不是 https 開頭，或無法解析');
+    if (!safeExternalUrl(item?.url)) add(`${field}.url`, ERROR, msg('網址不是 https 開頭，或無法解析', 'URLが https で始まっていないか、解析できません'));
     checkBilingual(item?.label, `${field}.label`, add);
   }),
   faq: (block, { add }) => {
@@ -97,7 +107,7 @@ const blockCheckers = {
   },
   link: (block, { add, page }) => {
     checkPath('link', block.href, 'href', add);
-    if (page !== 'teacher') add('href', ERROR, '連結區塊只能用在教師頁');
+    if (page !== 'teacher') add('href', ERROR, msg('連結區塊只能用在教師頁', 'リンクのブロックは教員向けページでのみ使えます'));
     checkBilingual(block.label, 'label', add);
   },
 };
@@ -110,8 +120,12 @@ export function checkBlock(block, { file, page, files = [] }) {
   const id = block?.id ?? '沒有編號';
   const add = (field, level, message) => issues.push({ file, id, field, level, message });
   if (!block || !Object.hasOwn(blockCheckers, block.type)) {
-    add('type', ERROR, `未知的類型：${block?.type}`);
+    add('type', ERROR, msg(`未知的類型：${block?.type}`, `不明な種類です：${block?.type}`));
     return issues;
+  }
+  // 隱藏開關（D-37 第 3 項）。隱藏的區塊仍照常檢查
+  if (block.hidden !== undefined && typeof block.hidden !== 'boolean') {
+    add('hidden', ERROR, msg('hidden 只能是 true 或 false', 'hidden は true か false にしてください'));
   }
   const found = [];
   blockCheckers[block.type](block, { add, page, files: found });
@@ -126,7 +140,7 @@ export function checkPage(content, file, files = []) {
   const addFor = (id) => (field, level, message) => issues.push({ file, id, field, level, message });
   const checkBlocks = (blocks, id) => {
     if (!Array.isArray(blocks)) {
-      addFor(id)('blocks', ERROR, '缺少內容');
+      addFor(id)('blocks', ERROR, EMPTY_MESSAGE);
       return;
     }
     for (const block of blocks) issues.push(...checkBlock(block, { file, page, files }));
@@ -134,7 +148,7 @@ export function checkPage(content, file, files = []) {
 
   checkBlocks(content.intro, 'intro');
   if (!Array.isArray(content.chapters)) {
-    addFor('chapters')('chapters', ERROR, '缺少內容');
+    addFor('chapters')('chapters', ERROR, EMPTY_MESSAGE);
     return issues;
   }
   for (const chapter of content.chapters) {
@@ -151,7 +165,7 @@ export function checkUi(content, file) {
     checkBilingual(text, 'text', (field, level, message) => issues.push({ file, id, field, level, message }));
   }
   if (issues.length === 0 && Object.keys(content.strings ?? {}).length === 0) {
-    issues.push({ file, id: 'strings', field: 'strings', level: ERROR, message: '缺少內容' });
+    issues.push({ file, id: 'strings', field: 'strings', level: ERROR, message: EMPTY_MESSAGE });
   }
   return issues;
 }
@@ -165,7 +179,7 @@ export async function checkFiles(files) {
     } catch {
       // 連線失敗視為不存在
     }
-    return { file, id, field, level: kind === 'figure' ? NOTICE : ERROR, message: `檔案不存在：${path}` };
+    return { file, id, field, level: kind === 'figure' ? NOTICE : ERROR, message: msg(`檔案不存在：${path}`, `ファイルがありません：${path}`) };
   }));
   return results.filter(Boolean);
 }
@@ -182,7 +196,7 @@ async function loadAndCheck(file, files) {
     const content = await response.json();
     return STRING_FILES.includes(file) ? checkUi(content, file) : checkPage(content, file, files);
   } catch (error) {
-    return [{ file, id: '整個檔案', field: '整個檔案', level: ERROR, message: `無法讀取：${error.message}` }];
+    return [{ file, id: '整個檔案', field: '整個檔案', level: ERROR, message: msg(`無法讀取：${error.message}`, `読み込めません：${error.message}`) }];
   }
 }
 
@@ -196,7 +210,7 @@ function showResult(issues) {
   for (const issue of [...errors, ...notices]) {
     const row = document.createElement('tr');
     row.className = issue.level === ERROR ? 'check-error' : 'check-notice';
-    for (const value of [issue.level, issue.file, issue.id, issue.field, issue.message]) {
+    for (const value of [issue.level, issue.file, issue.id, issue.field, issue.message.zh]) {
       const cell = document.createElement('td');
       cell.textContent = value;
       row.append(cell);
