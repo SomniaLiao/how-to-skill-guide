@@ -270,6 +270,32 @@ export function initSidebar({ strings, chapters, page, langSwitch }) {
     if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) unpin();
   });
 
+  // 拖曳捲軸、頁內搜尋造成的捲動不會觸發上面的事件。
+  // 所以記住跳轉停下來的位置，之後只要離開這個位置，不論用什麼方式捲動都解除固定
+  const SETTLE_MS = 150;
+  let pinnedY = null;
+  let settleTimer = 0;
+  const settle = () => {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => { if (pinnedId) pinnedY = window.scrollY; }, SETTLE_MS);
+  };
+  // 點目錄時重新開始等待。點的是目前所在的位置時不會捲動，計時器到了也會記下位置
+  sidebar.addEventListener('click', (event) => {
+    if (!event.target.closest('a[data-target]')) return;
+    pinnedY = null;
+    settle();
+  });
+  window.addEventListener('scroll', () => {
+    if (!pinnedId) return;
+    // 平滑捲動的途中也會一直收到 scroll，等停下來才記位置
+    if (pinnedY === null) { settle(); return; }
+    if (Math.abs(window.scrollY - pinnedY) > 2) {
+      unpin();
+      pinnedY = null;
+      detectCurrent();
+    }
+  }, { passive: true });
+
   // ---------- 寬度與語言改變 ----------
 
   function applyLayout() {
