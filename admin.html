@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant-TW" data-lang-mode="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>內容後台</title>
+<link rel="icon" href="assets/img/icons/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="admin/admin.css">
+<script type="module" src="admin/admin.js"></script>
+</head>
+<body data-page="admin">
+
+<!-- 登入畫面。程式確認沒有已保存的權杖後才顯示 -->
+<main class="admin-login" id="login-view" hidden>
+  <h1 class="admin-title font-head" tabindex="-1">內容後台</h1>
+  <p class="admin-lead">以 GitHub 權杖登入後，可以直接修改網站的內容與範本。</p>
+
+  <section class="admin-panel" aria-labelledby="token-guide-title">
+    <h2 class="admin-panel-title" id="token-guide-title">建立權杖</h2>
+    <ol class="admin-steps">
+      <li>開啟 GitHub 的 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Fine-grained tokens</a> 建立頁面。</li>
+      <li>「Expiration」設為 90 天以內。</li>
+      <li>「Repository access」選「Only select repositories」，只選這個網站的 repo。</li>
+      <li>「Permissions」中只把「Contents」設為「Read and write」。其他權限不要開啟，Metadata 會自動設為唯讀，這是正常的。</li>
+      <li>點「Generate token」，複製產生的權杖，貼到下方的欄位。</li>
+    </ol>
+    <p class="admin-warning">權杖等同這個 repo 的鑰匙。只貼在這個頁面，不要貼到聊天、文件或任何檔案中。懷疑外洩時，請立刻到同一個頁面撤銷。</p>
+  </section>
+
+  <form class="admin-panel admin-form" id="login-form" novalidate>
+    <h2 class="admin-panel-title">登入</h2>
+
+    <label class="admin-field">
+      <span class="admin-label">Repo</span>
+      <span class="admin-hint" id="repo-hint">格式為「帳號名稱/repo 名稱」。在 GitHub Pages 上開啟時會自動填入。</span>
+      <input type="text" id="repo-input" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="repo-hint" required>
+    </label>
+
+    <label class="admin-field">
+      <span class="admin-label">權杖</span>
+      <input type="password" id="token-input" autocomplete="off" spellcheck="false" autocapitalize="off" required>
+    </label>
+
+    <label class="admin-check">
+      <input type="checkbox" id="remember-input">
+      <span>記住此裝置</span>
+    </label>
+    <p class="admin-hint">不勾選時，關閉分頁就會登出。共用的電腦請不要勾選。</p>
+
+    <p class="admin-message" id="login-message" role="alert"></p>
+    <button type="submit" class="admin-button" id="login-button">登入</button>
+  </form>
+</main>
+
+<!-- 登入後的畫面。編輯器在 P2-3 加入 -->
+<div class="admin-app" id="app-view" hidden>
+  <header class="admin-header">
+    <span class="admin-header-title font-head">內容後台</span>
+    <span class="admin-repo" id="repo-name"></span>
+    <button type="button" class="admin-button admin-button-quiet" id="logout-button">登出</button>
+  </header>
+  <main class="admin-main" id="admin-main">
+    <h1 class="admin-title font-head" tabindex="-1">已登入</h1>
+    <p class="admin-lead">編輯功能將在下一步加入。</p>
+  </main>
+</div>
+
+<p class="admin-loading" id="loading-view">載入中</p>
+<noscript><p>本頁需要啟用 JavaScript 才能使用。</p></noscript>
+</body>
+</html>

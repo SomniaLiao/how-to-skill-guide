@@ -1,0 +1,123 @@
+/* 後台的樣式。色票與字型沿用 base.css，畫面是工具而非讀物，所以不加紙張的裝飾 */
+
+/* 有 hidden 的元素一律不顯示，避免被下面的 display 設定蓋掉 */
+[hidden] { display: none !important; }
+
+body[data-page="admin"] { min-height: 100vh; background: var(--color-kinari); }
+
+.admin-title {
+  margin: 0;
+  color: var(--color-tetsukon);
+  font-size: 1.75rem;
+  line-height: 1.4;
+}
+.admin-title:focus { outline: none; } /* 程式移入的焦點，不需要外框 */
+
+.admin-lead { margin-top: 0.75rem; color: var(--color-kurotsurubami); }
+
+.admin-loading { margin: 4rem 1rem; text-align: center; color: var(--color-kurotsurubami); }
+
+/* ---------- 登入畫面 ---------- */
+.admin-login {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 4rem 1rem 5rem;
+}
+
+.admin-panel {
+  margin-top: 2rem;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.admin-panel-title {
+  margin: 0 0 1rem;
+  color: var(--color-tetsukon);
+  font-size: 1.125rem;
+}
+
+.admin-steps { margin: 0; padding-left: 1.5em; }
+.admin-steps > li + li { margin-top: 0.5rem; }
+.admin-steps > li::marker { color: var(--color-chitose); font-weight: 700; }
+
+.admin-warning {
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--color-kokihi);
+  background: var(--color-neri);
+  font-size: 0.9375rem;
+}
+
+.admin-field { display: block; }
+.admin-field + .admin-field { margin-top: 1.25rem; }
+.admin-label { display: block; font-weight: 700; }
+.admin-hint { display: block; color: var(--color-kurotsurubami); font-size: 0.875rem; }
+
+.admin-field input {
+  display: block;
+  width: 100%;
+  margin-top: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-rikyu);
+  border-radius: 4px;
+  background: var(--color-kinari);
+  font-family: var(--font-code);
+}
+.admin-field input:focus-visible { outline-offset: 0; }
+
+.admin-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1.25rem;
+  cursor: pointer;
+}
+.admin-check input { width: 1.125rem; height: 1.125rem; margin: 0; accent-color: var(--color-chitose); }
+.admin-check + .admin-hint { margin-top: 0.125rem; padding-left: 1.625rem; }
+
+.admin-message { min-height: 1.8em; margin-top: 1.25rem; color: var(--color-kokihi); }
+.admin-message:empty { min-height: 0; margin-top: 0.5rem; }
+
+/* ---------- 按鈕 ---------- */
+.admin-button {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.75rem;
+  border: 1px solid var(--color-tetsukon);
+  border-radius: 4px;
+  background: var(--color-tetsukon);
+  color: var(--color-kinari);
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-button:hover { background: var(--color-ai); border-color: var(--color-ai); }
+.admin-button:disabled { opacity: 0.6; cursor: progress; }
+
+.admin-button-quiet {
+  margin: 0;
+  padding: 0.25rem 1rem;
+  background: transparent;
+  color: var(--color-tetsukon);
+}
+.admin-button-quiet:hover { background: var(--color-neri); border-color: var(--color-tetsukon); }
+
+/* ---------- 登入後 ---------- */
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--color-rikyu);
+  background: var(--color-neri);
+}
+.admin-header-title { color: var(--color-tetsukon); font-size: 1.125rem; }
+.admin-repo { margin-right: auto; color: var(--color-kurotsurubami); font-family: var(--font-code); font-size: 0.875rem; }
+
+.admin-main { max-width: 60rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+@media (max-width: 767.98px) {
+  .admin-login { padding-top: 2.5rem; }
+  .admin-panel { padding: 1.25rem 1rem; }
+}
