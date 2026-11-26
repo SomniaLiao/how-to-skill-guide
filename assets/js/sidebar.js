@@ -39,7 +39,8 @@ function tocLink(id, text, number) {
   const link = element('a', 'toc-link');
   link.href = `#${id}`;
   link.dataset.target = id;
-  if (number) {
+  // 編號 0 也要顯示，所以不能只寫 if (number)
+  if (number !== undefined) {
     const num = element('span', 'toc-num');
     num.textContent = String(number);
     link.append(num);
@@ -50,9 +51,9 @@ function tocLink(id, text, number) {
 
 function buildToc(chapters) {
   const toc = element('ol', 'toc');
-  chapters.forEach((chapter, index) => {
+  chapters.forEach((chapter) => {
     const item = element('li');
-    item.append(tocLink(chapter.id, chapter.title, index + 1));
+    item.append(tocLink(chapter.id, chapter.title, chapter.number));
     if (chapter.sections.length > 0) {
       const sub = element('ol', 'toc-sub');
       for (const section of chapter.sections) {
@@ -69,12 +70,12 @@ function buildToc(chapters) {
 
 function buildRail(chapters) {
   const rail = element('ol', 'rail-list');
-  chapters.forEach((chapter, index) => {
+  chapters.forEach((chapter) => {
     const item = element('li');
     const link = element('a', 'rail-link');
     link.href = `#${chapter.id}`;
     link.dataset.target = chapter.id;
-    link.textContent = String(index + 1);
+    link.textContent = String(chapter.number);
     item.append(link);
     rail.append(item);
   });
@@ -118,7 +119,8 @@ function buildSidebar(sidebar, { strings, chapters, page, langSwitch }) {
 
 // ---------- 進入點 ----------
 
-// chapters 的格式：[{ id, title: { zh, ja }, sections: [{ id, title }] }]
+// chapters 的格式：[{ id, number, title: { zh, ja }, sections: [{ id, title }] }]
+// number 是目錄顯示的編號，第 0 項是「開始之前」
 // langSwitch 是 i18n.js 建立的語言切換元件
 export function initSidebar({ strings, chapters, page, langSwitch }) {
   const sidebar = document.getElementById('sidebar');

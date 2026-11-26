@@ -55,14 +55,18 @@ function renderContent(content, context) {
 }
 
 // 目錄直接由內容產生，不另外維護
-function toTocChapters(content) {
-  return content.chapters.map((chapter) => ({
+function toTocChapters(content, strings) {
+  // 第 0 項「開始之前」指向頁面頂端，同時當作回到頂端的方法（D-37）
+  const top = { id: article.id, number: 0, title: strings['UI-25'], sections: [] };
+  const chapters = content.chapters.map((chapter, index) => ({
     id: chapter.id,
+    number: index + 1,
     title: chapter.title,
     sections: chapter.blocks
       .filter((block) => block.type === 'subheading')
       .map((block) => ({ id: block.id, title: block.text })),
   }));
+  return [top, ...chapters];
 }
 
 // 內容是載入後才建立的，瀏覽器一開始找不到網址中的錨點，所以要自己跳一次。
@@ -121,7 +125,7 @@ async function start() {
   try {
     const content = await loadJson(`content/${page}.json`);
     renderContent(content, context);
-    chapters = toTocChapters(content);
+    chapters = toTocChapters(content, strings);
   } catch (error) {
     showLoadError(error);
   }
