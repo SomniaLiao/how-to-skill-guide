@@ -283,6 +283,28 @@ export function buildBlockForm(block, ctx) {
   return form;
 }
 
+// 新增區塊時的初始內容。文字都是空白，檢查會提示「缺少翻譯」直到填好為止
+export function newBlock(type, id, month) {
+  const base = { id, type };
+  switch (type) {
+    case 'list':
+    case 'flow':
+    case 'steps': return { ...base, items: [emptyBi()] };
+    case 'note': return { ...base, variant: 'tip', text: emptyBi() };
+    case 'table': return { ...base, columns: [emptyBi(), emptyBi()], rows: [[emptyBi(), emptyBi()]] };
+    case 'figure': return { ...base, src: 'assets/img/screenshots/', alt: emptyBi(), device: 'desktop', date: month };
+    case 'code': return { ...base, file: 'templates/', caption: emptyBi() };
+    case 'download': return { ...base, items: [{ file: 'downloads/', label: emptyBi() }] };
+    case 'sources': return { ...base, items: [{ url: 'https://', label: emptyBi() }] };
+    case 'faq': return { ...base, q: emptyBi(), a: emptyBi() };
+    case 'link': return { ...base, href: 'index.html', label: emptyBi() };
+    default: return { ...base, text: emptyBi() }; // paragraph、subheading
+  }
+}
+
+// 編號只能有英數與連字號，開頭必須是英數（D-37 第 1 項，例如 S3-62-1）
+export const ID_PATTERN = /^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/;
+
 // 區塊的第一段文字，清單中顯示開頭幾個字用
 export function excerpt(block) {
   const source = block.text ?? block.label ?? block.q ?? block.caption ?? block.alt

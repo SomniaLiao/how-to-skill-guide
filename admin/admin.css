@@ -306,6 +306,38 @@ html[data-lang-mode="both"] .check-ok .t-ja { color: inherit; }
 html[data-lang-mode="both"] .check-issues .t-ja { color: inherit; }
 .check-level { font-weight: 700; }
 
+/* 區塊的操作按鈕放在標題列右側 */
+.editor-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-left: auto; }
+.editor-actions .admin-button { font-size: 0.875rem; }
+.admin-button-quiet.is-danger { border-color: var(--color-kokihi); color: var(--color-kokihi); }
+.admin-button-quiet.is-danger:hover { background: var(--color-kokihi); color: var(--color-kinari); }
+html[data-lang-mode="both"] .admin-button-quiet .t-ja { color: inherit; }
+
+.tree-settings {
+  display: block;
+  width: 100%;
+  padding: 0.125rem 0.5rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: none;
+  color: var(--color-ai);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+.tree-settings .t { display: inline; margin-right: 0.35em; }
+.tree-settings:hover { background: var(--color-kinari); }
+.tree-settings[aria-current="true"] { border-left-color: var(--color-chitose); background: var(--color-neri); }
+
+.editor-hint { margin-bottom: 0.75rem; color: var(--color-kurotsurubami); font-size: 0.875rem; }
+.editor-notice { margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: var(--color-neri); }
+.editor-add { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--color-rikyu); }
+.add-form { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: end; }
+.add-form .admin-button { margin-top: 0; }
+.add-field .text-input { width: 14rem; }
+.add-message { flex-basis: 100%; color: var(--color-kokihi); font-size: 0.875rem; }
+html[data-lang-mode="both"] .add-message .t-ja { color: inherit; }
+
 /* 預覽框模擬前台的紙張 */
 .preview-body { padding: 1rem 1.5rem 1.5rem; border: 1px solid var(--color-rikyu); background: var(--color-kinari); }
 .preview-body > .block:first-child,
