@@ -123,11 +123,12 @@ export function createClient({ token, repo, onUnauthorized }) {
     return { data: JSON.parse(text), sha };
   }
 
-  // 提交者一律使用 GitHub 的 noreply 地址，個人信箱不會進入提交紀錄（規格書 8.4、D-37）
+  // 提交者一律使用 GitHub 的 noreply 地址，個人信箱不會進入提交紀錄（規格書 8.4、D-37）。
+  // 名稱與本機提交相同，使用 repo 名稱，不使用帳號名稱
   async function getIdentity() {
     if (!identity) {
       const user = await request('/user');
-      identity = { name: user.login, email: `${user.id}+${user.login}@users.noreply.github.com` };
+      identity = { name, email: `${user.id}+${user.login}@users.noreply.github.com` };
     }
     return identity;
   }
