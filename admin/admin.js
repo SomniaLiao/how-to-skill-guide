@@ -1,7 +1,7 @@
 // 後台的進入點：介面文字、語言切換、權杖登入與登出（規格書 11.1、D-38）。
 
 import { appendBilingual, createLangSwitch, initLangMode, setPageTitle } from '../assets/js/i18n.js';
-import { ApiError, createClient, isValidRepo } from './github-api.js';
+import { ApiError, createClient, formatJson, isValidRepo, today } from './github-api.js';
 
 const TOKEN_KEY = 'htsg.admin.token';
 const REPO_KEY = 'htsg.admin.repo';
@@ -21,11 +21,16 @@ let client = null;
 
 // ---------- 介面文字 ----------
 
-// 取得編號對應的雙語文字。{status} 這類的位置換成實際的值
+// 取得編號對應的雙語文字。{status} 這類的位置換成實際的值。
+// 值本身是雙語物件時（例如網站名稱），中文句子填中文、日語句子填日語
 function text(id, values = {}) {
   const source = strings[id] ?? { zh: id, ja: id };
-  const fill = (value) => value.replace(/\{(\w+)\}/g, (match, key) => (key in values ? String(values[key]) : match));
-  return { zh: fill(source.zh), ja: fill(source.ja) };
+  const fill = (lang) => source[lang].replace(/\{(\w+)\}/g, (match, key) => {
+    if (!(key in values)) return match;
+    const value = values[key];
+    return String(typeof value === 'object' && value !== null ? value[lang] : value);
+  });
+  return { zh: fill('zh'), ja: fill('ja') };
 }
 
 // 把雙語文字寫進元素，先清空原本的內容
@@ -114,6 +119,9 @@ function describe(error) {
     case 'unauthorized': return ['AD-26'];
     case 'not-found': return ['AD-27'];
     case 'forbidden': return ['AD-28'];
+    case 'conflict': return ['AD-32'];
+    case 'path': return ['AD-46'];
+    case 'unsafe': return [{ email: 'AD-33', token: 'AD-34', key: 'AD-35' }[error.detail]];
     default: return ['AD-29', { status: error.status }];
   }
 }
@@ -185,7 +193,63 @@ async function login(event) {
 
 function logout() {
   clearToken();
+  $('test-log').replaceChildren();
   showLogin(['AD-22']);
+}
+
+// ---------- 連線測試（P2-2，P2-3 加入編輯器後移除） ----------
+
+const TEST_FILE = 'content/ui.json';
+
+function log(id, values, isError = false) {
+  const line = document.createElement('p');
+  if (isError) line.className = 'admin-log-error';
+  appendBilingual(line, text(id, values));
+  $('test-log').append(line);
+}
+
+// 測試期間停用按鈕，避免重複送出
+async function runTest(test) {
+  const buttons = [$('read-test'), $('write-test')];
+  buttons.forEach((button) => { button.disabled = true; });
+  $('test-log').replaceChildren();
+  log('AD-40');
+  try {
+    await test();
+  } catch (error) {
+    const [id, values] = describe(error);
+    log(id, values, true);
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+  }
+}
+
+// 讀取 ui.json，確認中日文解碼正確，並顯示提交時使用的 noreply 地址
+async function readTest() {
+  const { data, sha } = await client.readJson(TEST_FILE);
+  log('AD-41', { name: data.strings['UI-01'], sha: sha.slice(0, 7) });
+  const { email } = await client.getIdentity();
+  log('AD-42', { email });
+}
+
+// 把更新日期改為今天後寫回，再用一個不存在的舊版本寫入，確認會被拒絕
+async function writeTest() {
+  const { data, sha } = await client.readJson(TEST_FILE);
+  data.updated = today();
+  const content = { text: formatJson(data) };
+  const result = await client.writeFile(TEST_FILE, content, {
+    sha,
+    message: 'content: 更新 ui.json 的更新日期（後台連線測試）',
+  });
+  log('AD-43', { commit: result.commit.slice(0, 7) });
+
+  try {
+    await client.writeFile(TEST_FILE, content, { sha: '0'.repeat(40), message: 'content: 衝突測試' });
+    log('AD-45', {}, true);
+  } catch (error) {
+    if (error.kind === 'conflict') log('AD-44');
+    else throw error;
+  }
 }
 
 // ---------- 開始 ----------
@@ -206,6 +270,8 @@ async function start() {
 
   $('login-form').addEventListener('submit', login);
   $('logout-button').addEventListener('click', logout);
+  $('read-test').addEventListener('click', () => runTest(readTest));
+  $('write-test').addEventListener('click', () => runTest(writeTest));
 
   // 有保存的權杖就先確認它還能用
   const token = loadToken();
